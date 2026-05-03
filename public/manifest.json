@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Transcript Analyzer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Analyze YouTube transcripts with AI-powered summaries and Q&A",
   "icons": {
     "16": "icons/icon-16.png",
@@ -12,12 +12,14 @@
     "storage",
     "activeTab",
     "scripting",
-    "clipboardWrite"
+    "clipboardWrite",
+    "alarms"
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
     "https://*.youtube.com/*",
-    "https://openrouter.ai/*"
+    "https://openrouter.ai/*",
+    "https://api.github.com/*"
   ],
   "background": {
     "service_worker": "background.js",

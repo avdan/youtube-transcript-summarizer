@@ -246,6 +246,50 @@
       outline: none;
       box-shadow: 0 0 0 2px rgba(204, 31, 26, 0.12);
     }
+
+    .update-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      color: #1f3b8a;
+      background: #eef4ff;
+      border: 1px solid #c7d6f5;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .update-banner.visible {
+      display: flex;
+    }
+
+    .update-banner .update-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .update-banner a {
+      color: #1f3b8a;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .update-banner button {
+      padding: 4px 8px;
+      color: #1f3b8a;
+      background: transparent;
+      border: 1px solid #c7d6f5;
+      border-radius: 4px;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .update-banner button:hover {
+      background: #dbe6fb;
+    }
   </style>
 </head>
 <body>
@@ -254,6 +298,13 @@
       <h1 class="title">YouTube Summary</h1>
       <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
     </header>
+    <div class="update-banner" id="updateBanner">
+      <span class="update-text">
+        Update available:
+        <a id="updateLink" href="#" target="_blank" rel="noopener noreferrer">v<span id="updateVersion"></span></a>
+      </span>
+      <button id="updateDismissBtn" type="button">Dismiss</button>
+    </div>
     <main id="content"></main>
   </div>
   <script src="popup.js"></script>

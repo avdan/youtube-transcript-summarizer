@@ -2,6 +2,12 @@ import { Message } from '../types';
 import { OpenRouterService } from '../api/openrouter';
 import { StorageService } from '../utils/storage';
 import { fetchTranscriptFromBackground, fetchTranscriptDirect } from './transcriptFetcher';
+import {
+  registerUpdateChecker,
+  checkForUpdate,
+  getUpdateState,
+  dismissUpdate,
+} from './updateChecker';
 
 console.log('Background service worker started');
 
@@ -37,8 +43,11 @@ async function initializeOpenRouter() {
   }
 }
 
+registerUpdateChecker();
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed');
+  void checkForUpdate();
 });
 
 // Listen for messages
@@ -259,6 +268,18 @@ async function handleMessage(message: Message) {
       }
     }
 
+    case 'GET_UPDATE_INFO': {
+      return await getUpdateState();
+    }
+
+    case 'DISMISS_UPDATE': {
+      const { version } = message.payload || {};
+      if (typeof version === 'string' && version.length > 0) {
+        await dismissUpdate(version);
+      }
+      return { success: true };
+    }
+
     default:
       throw new Error(`Unknown action: ${message.action}`);
   }
@@ -267,4 +288,5 @@ async function handleMessage(message: Message) {
 // Initialize on startup
 chrome.runtime.onStartup.addListener(() => {
   initializeOpenRouter();
+  void checkForUpdate();
 });

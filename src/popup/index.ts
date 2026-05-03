@@ -23,8 +23,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.openOptionsPage();
   });
 
+  void renderUpdateBanner();
   await loadPopup();
 });
+
+async function renderUpdateBanner(): Promise<void> {
+  const banner = document.getElementById('updateBanner');
+  const link = document.getElementById('updateLink') as HTMLAnchorElement | null;
+  const versionEl = document.getElementById('updateVersion');
+  const dismissBtn = document.getElementById('updateDismissBtn');
+  if (!banner || !link || !versionEl || !dismissBtn) return;
+
+  let state: { current: string; available: { latestVersion: string; releaseUrl: string } | null; dismissed: string | null };
+  try {
+    state = await sendMessageToBackground({ action: 'GET_UPDATE_INFO' });
+  } catch {
+    return;
+  }
+
+  if (!state?.available) return;
+  if (state.dismissed === state.available.latestVersion) return;
+
+  versionEl.textContent = state.available.latestVersion;
+  link.href = state.available.releaseUrl;
+  banner.classList.add('visible');
+
+  dismissBtn.addEventListener('click', async () => {
+    banner.classList.remove('visible');
+    try {
+      await sendMessageToBackground({
+        action: 'DISMISS_UPDATE',
+        payload: { version: state.available!.latestVersion },
+      });
+    } catch {
+      // ignore
+    }
+  });
+}
 
 async function loadPopup(): Promise<void> {
   try {

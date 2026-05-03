@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.0.6). Must already exist.'
+        required: true
 
 permissions:
   contents: write
@@ -12,7 +17,21 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve ref
+        id: resolve
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve.outputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -21,17 +40,50 @@ jobs:
 
       - run: npm ci
 
+      - name: Sync manifest version with tag
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          export VERSION="${TAG#v}"
+          node -e "
+            const fs = require('fs');
+            const path = 'public/manifest.json';
+            const m = JSON.parse(fs.readFileSync(path, 'utf8'));
+            m.version = process.env.VERSION;
+            fs.writeFileSync(path, JSON.stringify(m, null, 2) + '\n');
+            console.log('manifest.json version =', m.version);
+          "
+
       - run: npm run build
 
       - name: Package extension
         env:
-          REF_NAME: ${{ github.ref_name }}
+          TAG: ${{ steps.resolve.outputs.tag }}
         run: |
+          ASSET="youtube-transcript-summarizer-extension-${TAG}.zip"
           cd dist
-          zip -r "../youtube-transcript-summarizer-${REF_NAME}.zip" .
+          zip -r "../${ASSET}" .
+          cd ..
+          ls -la "${ASSET}"
+          echo "ASSET=${ASSET}" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: youtube-transcript-summarizer-${{ github.ref_name }}.zip
+          tag_name: ${{ steps.resolve.outputs.tag }}
+          name: ${{ steps.resolve.outputs.tag }}
+          files: ${{ env.ASSET }}
           generate_release_notes: true
+          body: |
+            ## Install the extension
+
+            **Most users:** download **`${{ env.ASSET }}`** from the **Assets** section below — that's the unpacked extension, ready to load in Chrome.
+
+            1. Download and unzip the file.
+            2. Open `chrome://extensions`.
+            3. Enable **Developer mode** (top right).
+            4. Click **Load unpacked** and select the unzipped folder.
+
+            > Ignore the auto-generated **Source code** archives — those are for developers who want to build from source.
+
+            ---
