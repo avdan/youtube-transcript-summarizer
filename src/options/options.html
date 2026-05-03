@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube Transcript Analyzer - Settings</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #202124;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .section {
+      margin-bottom: 32px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .help-text {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 4px;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 12px;
+    }
+    
+    button {
+      padding: 8px 24px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .primary-btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+    }
+    
+    .primary-btn:hover {
+      background: #1765cc;
+    }
+    
+    .secondary-btn {
+      background: white;
+      color: #1a73e8;
+      border: 1px solid #dadce0;
+    }
+    
+    .secondary-btn:hover {
+      background: #f8f9fa;
+    }
+    
+    .success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    
+    .error {
+      background: #fce4ec;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    
+    .info {
+      background: #e3f2fd;
+      color: #1565c0;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+    
+    .storage-info {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .storage-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    
+    .storage-used {
+      height: 100%;
+      background: #1a73e8;
+      transition: width 0.3s;
+    }
+    
+    #message {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Transcript Analyzer Settings</h1>
+  
+  <div id="message"></div>
+  
+  <div class="section">
+    <h2 class="section-title">OpenRouter Configuration</h2>
+    
+    <div class="form-group">
+      <label for="apiKey">API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-or-...">
+      <div class="help-text">
+        Get your API key from <a href="https://openrouter.ai/settings/keys" target="_blank">OpenRouter Keys</a>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label for="model">Model</label>
+      <select id="model">
+        <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Fast, low cost)</option>
+        <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5 (High quality)</option>
+        <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B Instruct (Open model)</option>
+        <option value="mistralai/mistral-small-3.2-24b-instruct-2506">Mistral Small 3.2 24B (Efficient)</option>
+        <option value="openrouter/auto">OpenRouter Auto (Route automatically)</option>
+      </select>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2 class="section-title">Preferences</h2>
+    
+    <div class="form-group">
+      <label for="summaryLength">Summary Length</label>
+      <select id="summaryLength">
+        <option value="short">Short (Quick overview)</option>
+        <option value="medium">Medium (Balanced)</option>
+        <option value="long">Long (Detailed)</option>
+      </select>
+    </div>
+    
+  </div>
+  
+  <div class="section">
+    <h2 class="section-title">Storage Management</h2>
+    
+    <div class="storage-info">
+      <div>Storage Used: <span id="storageUsed">0 KB</span> / <span id="storageQuota">0 MB</span></div>
+      <div class="storage-bar">
+        <div class="storage-used" id="storageBar"></div>
+      </div>
+      <div style="margin-top: 12px;">
+        <button class="secondary-btn" id="clearCacheBtn">Clear Cache</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="buttons">
+    <button class="primary-btn" id="saveBtn">Save Settings</button>
+    <button class="secondary-btn" id="testBtn">Test Connection</button>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
