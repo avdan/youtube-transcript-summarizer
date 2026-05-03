@@ -150,11 +150,11 @@ export class YouTubeTranscriptAPI {
   }
 
   private async fetchTranscriptFromDomPanel(): Promise<TranscriptSegment[]> {
-    let transcriptPanel = document.querySelector('ytd-transcript-renderer') as HTMLElement | null;
+    let transcriptPanel = this.findOpenTranscriptPanel();
 
     if (!transcriptPanel) {
       await this.openTranscriptPanel();
-      transcriptPanel = await this.waitForElement('ytd-transcript-renderer', 7000);
+      transcriptPanel = await this.waitForTranscriptPanel(7000);
     }
 
     if (!transcriptPanel) {
@@ -165,7 +165,7 @@ export class YouTubeTranscriptAPI {
   }
 
   private async openTranscriptPanel(): Promise<void> {
-    const existingPanel = document.querySelector('ytd-transcript-renderer');
+    const existingPanel = this.findOpenTranscriptPanel();
     if (existingPanel) {
       return;
     }
@@ -196,6 +196,57 @@ export class YouTubeTranscriptAPI {
     }
 
     throw new Error('show transcript button was not found');
+  }
+
+  private findOpenTranscriptPanel(): HTMLElement | null {
+    const selectors = [
+      'ytd-transcript-renderer',
+      'ytd-engagement-panel-section-list-renderer[target-id="PAmodern_transcript_view"]',
+      'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]',
+      'ytd-engagement-panel-section-list-renderer[target-id*="transcript"]',
+      'yt-section-list-renderer[data-target-id="PAmodern_transcript_view"]',
+      'yt-section-list-renderer[panel-target-id="PAmodern_transcript_view"]',
+      'yt-section-list-renderer[data-target-id*="transcript"]',
+      'yt-section-list-renderer[panel-target-id*="transcript"]',
+      'ytd-section-list-renderer[panel-target-id*="transcript"]',
+    ];
+
+    const panels = selectors.flatMap(selector => Array.from(document.querySelectorAll(selector)) as HTMLElement[]);
+    const uniquePanels = Array.from(new Set(panels));
+    const visiblePanels = uniquePanels.filter(panel => this.isTranscriptPanelVisible(panel));
+
+    return visiblePanels.find(panel => this.hasDomTranscriptSegments(panel)) || visiblePanels[0] || null;
+  }
+
+  private async waitForTranscriptPanel(timeoutMs: number): Promise<HTMLElement | null> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const panel = this.findOpenTranscriptPanel();
+      if (panel) {
+        return panel;
+      }
+
+      await this.sleep(150);
+    }
+
+    return null;
+  }
+
+  private isTranscriptPanelVisible(panel: HTMLElement): boolean {
+    if (panel.hidden || panel.getAttribute('aria-hidden') === 'true') {
+      return false;
+    }
+
+    if (panel.getAttribute('visibility') === 'ENGAGEMENT_PANEL_VISIBILITY_HIDDEN') {
+      return false;
+    }
+
+    return this.isVisible(panel);
+  }
+
+  private hasDomTranscriptSegments(panel: HTMLElement): boolean {
+    return this.getDomTranscriptSegmentNodes(panel).length > 0;
   }
 
   private async scrollToDescription(): Promise<void> {
@@ -353,10 +404,7 @@ export class YouTubeTranscriptAPI {
   private async collectTranscriptSegmentsFromPanel(panel: HTMLElement): Promise<TranscriptSegment[]> {
     const seen = new Set<string>();
     const segments: TranscriptSegment[] = [];
-    const scrollContainer =
-      (panel.querySelector('#segments-container') as HTMLElement | null) ||
-      (panel.querySelector('ytd-transcript-segment-list-renderer') as HTMLElement | null) ||
-      panel;
+    const scrollContainer = this.findTranscriptScrollContainer(panel);
 
     for (let index = 0; index < 25; index += 1) {
       this.parseDomTranscriptSegments(panel, seen, segments);
@@ -375,20 +423,19 @@ export class YouTubeTranscriptAPI {
   }
 
   private parseDomTranscriptSegments(panel: HTMLElement, seen: Set<string>, segments: TranscriptSegment[]): void {
-    const nodes = Array.from(
-      panel.querySelectorAll('ytd-transcript-segment-renderer, yt-formatted-string.segment-text')
-    ) as HTMLElement[];
+    const nodes = this.getDomTranscriptSegmentNodes(panel);
 
     for (const node of nodes) {
-      const container = (node.closest('ytd-transcript-segment-renderer') as HTMLElement | null) || node;
+      const container =
+        (node.closest('ytd-transcript-segment-renderer, transcript-segment-view-model, .ytwTranscriptSegmentViewModelHost') as HTMLElement | null) ||
+        node;
       const timeText =
         container.querySelector('.segment-timestamp')?.textContent?.trim() ||
+        container.querySelector('.ytwTranscriptSegmentViewModelTimestamp')?.textContent?.trim() ||
         container.querySelector('[class*="timestamp"]')?.textContent?.trim() ||
+        container.querySelector('[class*="Timestamp"]')?.textContent?.trim() ||
         '';
-      const text =
-        container.querySelector('.segment-text')?.textContent?.trim() ||
-        container.textContent?.replace(timeText, '').replace(/\s+/g, ' ').trim() ||
-        '';
+      const text = this.extractDomTranscriptSegmentText(container, timeText);
 
       if (!text) {
         continue;
@@ -406,6 +453,59 @@ export class YouTubeTranscriptAPI {
         duration: 0,
       });
     }
+  }
+
+  private getDomTranscriptSegmentNodes(panel: HTMLElement): HTMLElement[] {
+    const segmentNodes = Array.from(
+      panel.querySelectorAll('ytd-transcript-segment-renderer, transcript-segment-view-model, .ytwTranscriptSegmentViewModelHost')
+    ) as HTMLElement[];
+
+    if (segmentNodes.length > 0) {
+      return segmentNodes;
+    }
+
+    return Array.from(panel.querySelectorAll('yt-formatted-string.segment-text, .segment-text')) as HTMLElement[];
+  }
+
+  private findTranscriptScrollContainer(panel: HTMLElement): HTMLElement {
+    const candidates = [
+      panel.querySelector('#segments-container') as HTMLElement | null,
+      panel.querySelector('ytd-transcript-segment-list-renderer') as HTMLElement | null,
+      panel.querySelector('yt-section-list-renderer[panel-target-id*="transcript"]') as HTMLElement | null,
+      panel.querySelector('yt-section-list-renderer[data-target-id*="transcript"]') as HTMLElement | null,
+      panel.querySelector('ytd-section-list-renderer[panel-target-id*="transcript"]') as HTMLElement | null,
+      panel.querySelector('.ytSectionListRendererContents') as HTMLElement | null,
+      panel.querySelector('#content') as HTMLElement | null,
+      panel,
+    ].filter((candidate): candidate is HTMLElement => candidate !== null);
+
+    return candidates.find(candidate => candidate.scrollHeight > candidate.clientHeight) || panel;
+  }
+
+  private extractDomTranscriptSegmentText(container: HTMLElement, timeText: string): string {
+    const textSelectors = [
+      '.segment-text',
+      'yt-formatted-string.segment-text',
+      'span.ytAttributedStringHost[role="text"]',
+      '[class*="TranscriptSegmentViewModelHost"] span[role="text"]',
+      'span[role="text"]',
+    ];
+
+    for (const selector of textSelectors) {
+      const text = container.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim();
+      if (text && text !== timeText) {
+        return text;
+      }
+    }
+
+    const timestampA11yText =
+      container.querySelector('.ytwTranscriptSegmentViewModelTimestampA11yLabel')?.textContent?.trim() || '';
+
+    return (container.textContent || '')
+      .replace(timeText, '')
+      .replace(timestampA11yText, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   private parseTimestamp(value: string): number {
