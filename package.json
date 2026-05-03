@@ -1,6 +1,6 @@
 {
   "name": "youtube-transcript-summarizer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Chrome extension that summarizes YouTube videos from their transcripts using OpenRouter.",
   "scripts": {
     "dev": "webpack --mode=development --watch",
