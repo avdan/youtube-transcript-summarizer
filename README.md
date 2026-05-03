@@ -12,11 +12,22 @@ Chrome extension that summarizes the current YouTube video from its transcript u
 
 ## Requirements
 
-- Node.js and npm
 - Chrome or another Chromium browser with extension developer mode
 - OpenRouter API key
+- Node.js and npm (only required if building from source)
 
-## Setup
+## Install (recommended)
+
+1. Download the latest `youtube-transcript-summarizer-vX.Y.Z.zip` from the [Releases page](https://github.com/avdan/youtube-transcript-summarizer/releases/latest).
+2. Unzip it anywhere on your machine.
+3. Open `chrome://extensions`.
+4. Enable **Developer mode**.
+5. Click **Load unpacked** and select the unzipped folder.
+6. Confirm the extension card shows the expected version.
+
+## Install from source
+
+Use this path if you want to modify the extension or run an unreleased version.
 
 Install dependencies:
 
@@ -38,13 +49,12 @@ Build the extension:
 npm run build
 ```
 
-## Load In Chrome
+Then load it in Chrome:
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode**.
 3. Click **Load unpacked**.
 4. Select the `dist/` folder.
-5. Confirm the extension card shows the expected version.
 
 After every code change, run `npm run build`, then click the reload button on the extension card.
 
@@ -55,6 +65,15 @@ After every code change, run `npm run build`, then click the reload button on th
 3. If prompted, open Settings and save your OpenRouter API key.
 4. Click the extension icon again.
 5. The popup extracts the transcript, summarizes the video, and shows a question box for follow-up questions.
+
+## Releasing
+
+Tag and push a new version to trigger the GitHub Actions release workflow, which builds `dist/`, zips it, and attaches the zip to a new GitHub Release:
+
+```bash
+npm version patch   # or minor / major
+git push --follow-tags
+```
 
 Some YouTube videos only expose transcript text through the visible transcript panel. In that case, the extension may scroll to the description, click **Show transcript**, and read the rendered panel.
 
