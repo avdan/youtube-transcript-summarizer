@@ -191,13 +191,19 @@ function renderBody(): void {
       });
     });
 
+    const copyTranscriptBtn = document.createElement('button');
+    copyTranscriptBtn.className = 'tiny-btn';
+    copyTranscriptBtn.type = 'button';
+    copyTranscriptBtn.textContent = 'Copy transcript';
+    copyTranscriptBtn.addEventListener('click', () => void copyTranscript(copyTranscriptBtn));
+
     const regenBtn = document.createElement('button');
     regenBtn.className = 'tiny-btn';
     regenBtn.type = 'button';
     regenBtn.textContent = 'Regenerate';
     regenBtn.addEventListener('click', () => void loadOrSummarize(true));
 
-    sActions.append(copyBtn, regenBtn);
+    sActions.append(copyBtn, copyTranscriptBtn, regenBtn);
     summaryHeader.append(sLabel, sActions);
 
     const summaryText = document.createElement('pre');
@@ -344,6 +350,27 @@ async function loadOrSummarize(force: boolean): Promise<void> {
   } finally {
     state.busy = false;
     renderBody();
+  }
+}
+
+async function copyTranscript(button: HTMLButtonElement): Promise<void> {
+  const original = button.textContent || 'Copy transcript';
+  try {
+    let transcript = (state.transcript || '').trim();
+    if (!transcript && state.videoId) {
+      transcript = (await new YouTubeTranscriptAPI(state.videoId).getFormattedTranscript()).trim();
+      state.transcript = transcript;
+    }
+    if (!transcript) {
+      throw new Error('No transcript available.');
+    }
+    await navigator.clipboard.writeText(transcript);
+    button.textContent = 'Copied';
+    setTimeout(() => (button.textContent = original), 1200);
+  } catch (error) {
+    button.textContent = 'Failed';
+    setTimeout(() => (button.textContent = original), 1500);
+    console.warn('Copy transcript failed:', error);
   }
 }
 

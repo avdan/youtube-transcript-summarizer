@@ -259,12 +259,17 @@ function showSummary(summary: string, fromCache: boolean): void {
   copyButton.textContent = 'Copy';
   copyButton.addEventListener('click', () => copySummary(summaryWithMetadata, copyButton));
 
+  const copyTranscriptButton = document.createElement('button');
+  copyTranscriptButton.className = 'icon-btn';
+  copyTranscriptButton.textContent = 'Copy transcript';
+  copyTranscriptButton.addEventListener('click', () => copyTranscript(copyTranscriptButton));
+
   const regenerateButton = document.createElement('button');
   regenerateButton.className = 'icon-btn';
   regenerateButton.textContent = 'Regenerate';
   regenerateButton.addEventListener('click', () => summarizeCurrentVideo(true));
 
-  actions.append(copyButton, regenerateButton);
+  actions.append(copyButton, copyTranscriptButton, regenerateButton);
   summaryHeader.append(summaryTitle, actions);
 
   const summaryContent = document.createElement('pre');
@@ -385,6 +390,26 @@ async function copySummary(summary: string, button: HTMLButtonElement): Promise<
     }, 1400);
   } catch (error) {
     showError('Could not copy the summary to the clipboard.');
+  }
+}
+
+async function copyTranscript(button: HTMLButtonElement): Promise<void> {
+  const originalText = button.textContent || 'Copy transcript';
+
+  try {
+    const data = await sendMessageToBackground({ action: 'GET_CURRENT_DATA' });
+    const transcript = (data?.transcript || '').trim();
+    if (!transcript) {
+      throw new Error('No transcript loaded yet.');
+    }
+
+    await navigator.clipboard.writeText(transcript);
+    button.textContent = 'Copied';
+    window.setTimeout(() => {
+      button.textContent = originalText;
+    }, 1400);
+  } catch (error) {
+    showError(getErrorMessage(error));
   }
 }
 

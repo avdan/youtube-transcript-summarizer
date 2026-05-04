@@ -170,6 +170,7 @@ async function handleMessage(message: Message) {
       return {
         videoId: currentVideoId,
         hasTranscript: !!currentTranscript,
+        transcript: currentTranscript,
         summary: currentSummary,
         conversationHistory,
       };
