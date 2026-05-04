@@ -1,12 +1,15 @@
 import { Message } from '../types';
 import { StorageService } from '../utils/storage';
 import { MODEL_OPTIONS } from '../constants/models';
+import { withCopyHeader } from '../utils/copyHeader';
 
 interface VideoInfo {
   videoId: string | null;
   title: string;
   channel: string;
   handle?: string;
+  channelUrl?: string;
+  url?: string;
 }
 
 let contentDiv: HTMLElement;
@@ -285,16 +288,17 @@ function showSummary(summary: string, fromCache: boolean): void {
 }
 
 function formatSummaryWithMetadata(summary: string): string {
-  const lines = [
-    currentVideo?.title?.trim() ? `# ${currentVideo.title.trim()}` : '',
-    formatChannelLine(),
-  ].filter(Boolean);
-
-  if (lines.length === 0) {
-    return summary;
-  }
-
-  return `${lines.join('\n')}\n\n${summary}`;
+  return withCopyHeader(
+    {
+      title: currentVideo?.title,
+      channel: currentVideo?.channel,
+      handle: currentVideo?.handle,
+      channelUrl: currentVideo?.channelUrl,
+      videoUrl: currentVideo?.url,
+      videoId: currentVideo?.videoId,
+    },
+    summary
+  );
 }
 
 function formatChannelLine(): string {
@@ -403,7 +407,19 @@ async function copyTranscript(button: HTMLButtonElement): Promise<void> {
       throw new Error('No transcript loaded yet.');
     }
 
-    await navigator.clipboard.writeText(transcript);
+    const transcriptWithHeader = withCopyHeader(
+      {
+        title: currentVideo?.title,
+        channel: currentVideo?.channel,
+        handle: currentVideo?.handle,
+        channelUrl: currentVideo?.channelUrl,
+        videoUrl: currentVideo?.url,
+        videoId: currentVideo?.videoId,
+      },
+      transcript
+    );
+
+    await navigator.clipboard.writeText(transcriptWithHeader);
     button.textContent = 'Copied';
     window.setTimeout(() => {
       button.textContent = originalText;

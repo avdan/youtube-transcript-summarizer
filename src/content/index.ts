@@ -26,7 +26,7 @@ function initContentScript(): void {
   currentVideoId = getVideoId();
   notifyVideoChange();
   mountInPagePanel();
-  onVideoChanged(currentVideoId, getVideoTitle());
+  onVideoChanged(currentVideoId, buildVideoMeta());
 
   chrome.runtime.onMessage.addListener((message: RuntimeRequest, _sender, sendResponse) => {
     const action = message.action || message.type;
@@ -67,12 +67,22 @@ function initContentScript(): void {
     lastUrl = location.href;
     currentVideoId = getVideoId();
     notifyVideoChange();
-    onVideoChanged(currentVideoId, getVideoTitle());
+    onVideoChanged(currentVideoId, buildVideoMeta());
   }).observe(document, { childList: true, subtree: true });
 }
 
 function getVideoId(): string | null {
   return new URLSearchParams(window.location.search).get('v');
+}
+
+function buildVideoMeta() {
+  return {
+    title: getVideoTitle(),
+    channel: getChannelName(),
+    handle: getChannelHandle(),
+    channelUrl: getChannelUrl(),
+    url: location.href,
+  };
 }
 
 function getVideoInfo() {
@@ -81,8 +91,26 @@ function getVideoInfo() {
     title: getVideoTitle(),
     channel: getChannelName(),
     handle: getChannelHandle(),
+    channelUrl: getChannelUrl(),
     url: location.href,
   };
+}
+
+function getChannelUrl(): string {
+  const selectors = [
+    'ytd-watch-metadata ytd-channel-name a',
+    '#owner ytd-channel-name a',
+    '#channel-name a',
+  ];
+
+  for (const selector of selectors) {
+    const href = (document.querySelector(selector) as HTMLAnchorElement | null)?.href;
+    if (href) {
+      return href;
+    }
+  }
+
+  return '';
 }
 
 function getVideoTitle(): string {

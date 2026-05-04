@@ -1,5 +1,14 @@
 import { MODEL_OPTIONS } from '../constants/models';
 import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
+import { withCopyHeader } from '../utils/copyHeader';
+
+export interface VideoMeta {
+  title: string;
+  channel: string;
+  handle: string;
+  channelUrl: string;
+  url: string;
+}
 
 const HOST_ID = 'yts-summarizer-host';
 const SESSION_HIDDEN_KEY = '__ytsHiddenInSession';
@@ -7,6 +16,10 @@ const SESSION_HIDDEN_KEY = '__ytsHiddenInSession';
 interface PanelState {
   videoId: string | null;
   videoTitle: string;
+  channel: string;
+  handle: string;
+  channelUrl: string;
+  videoUrl: string;
   transcript: string | null;
   summary: string | null;
   conversationHistory: Array<{ role: string; content: string }>;
@@ -17,6 +30,10 @@ interface PanelState {
 const state: PanelState = {
   videoId: null,
   videoTitle: '',
+  channel: '',
+  handle: '',
+  channelUrl: '',
+  videoUrl: '',
   transcript: null,
   summary: null,
   conversationHistory: [],
@@ -33,9 +50,13 @@ export function mountInPagePanel(): void {
   observeMountPoint();
 }
 
-export function onVideoChanged(videoId: string | null, title: string): void {
+export function onVideoChanged(videoId: string | null, meta: VideoMeta): void {
   state.videoId = videoId;
-  state.videoTitle = title;
+  state.videoTitle = meta.title;
+  state.channel = meta.channel;
+  state.handle = meta.handle;
+  state.channelUrl = meta.channelUrl;
+  state.videoUrl = meta.url;
   state.transcript = null;
   state.summary = null;
   state.conversationHistory = [];
@@ -185,7 +206,8 @@ function renderBody(): void {
     copyBtn.type = 'button';
     copyBtn.textContent = 'Copy';
     copyBtn.addEventListener('click', () => {
-      void navigator.clipboard.writeText(state.summary || '').then(() => {
+      const payload = withCopyHeader(buildHeaderInfo(), state.summary || '');
+      void navigator.clipboard.writeText(payload).then(() => {
         copyBtn.textContent = 'Copied';
         setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
       });
@@ -353,6 +375,17 @@ async function loadOrSummarize(force: boolean): Promise<void> {
   }
 }
 
+function buildHeaderInfo() {
+  return {
+    title: state.videoTitle,
+    channel: state.channel,
+    handle: state.handle,
+    channelUrl: state.channelUrl,
+    videoUrl: state.videoUrl,
+    videoId: state.videoId,
+  };
+}
+
 async function copyTranscript(button: HTMLButtonElement): Promise<void> {
   const original = button.textContent || 'Copy transcript';
   try {
@@ -364,7 +397,8 @@ async function copyTranscript(button: HTMLButtonElement): Promise<void> {
     if (!transcript) {
       throw new Error('No transcript available.');
     }
-    await navigator.clipboard.writeText(transcript);
+    const payload = withCopyHeader(buildHeaderInfo(), transcript);
+    await navigator.clipboard.writeText(payload);
     button.textContent = 'Copied';
     setTimeout(() => (button.textContent = original), 1200);
   } catch (error) {
