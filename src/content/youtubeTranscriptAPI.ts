@@ -1188,3 +1188,36 @@ export class YouTubeTranscriptAPI {
     return error instanceof Error ? error.message : String(error);
   }
 }
+
+/**
+ * Fetch a transcript with up to {maxRetries} attempts. Each attempt builds a
+ * fresh API instance so cached player-response data from a failed attempt
+ * doesn't poison the next one. Backoff grows linearly and is capped at 3s.
+ */
+export async function fetchFormattedTranscriptWithRetry(
+  videoId: string,
+  languageCode?: string,
+  maxRetries = 10
+): Promise<string> {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    try {
+      const text = await new YouTubeTranscriptAPI(videoId).getFormattedTranscript(languageCode);
+      if (text && text.length > 0) {
+        return text;
+      }
+      lastError = new Error('empty transcript returned');
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < maxRetries - 1) {
+      const delay = Math.min(500 + attempt * 250, 3000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  const message = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`Could not load transcript after ${maxRetries} attempts. ${message}`);
+}

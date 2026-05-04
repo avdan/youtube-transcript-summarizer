@@ -1,5 +1,5 @@
 import { MODEL_OPTIONS } from '../constants/models';
-import { YouTubeTranscriptAPI } from './youtubeTranscriptAPI';
+import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 
 const HOST_ID = 'yts-summarizer-host';
 const SESSION_HIDDEN_KEY = '__ytsHiddenInSession';
@@ -331,7 +331,7 @@ async function loadOrSummarize(force: boolean): Promise<void> {
     }
 
     if (!state.transcript) {
-      state.transcript = await new YouTubeTranscriptAPI(state.videoId).getFormattedTranscript();
+      state.transcript = await fetchFormattedTranscriptWithRetry(state.videoId);
     }
 
     const response = await sendBackground({
@@ -358,7 +358,7 @@ async function copyTranscript(button: HTMLButtonElement): Promise<void> {
   try {
     let transcript = (state.transcript || '').trim();
     if (!transcript && state.videoId) {
-      transcript = (await new YouTubeTranscriptAPI(state.videoId).getFormattedTranscript()).trim();
+      transcript = (await fetchFormattedTranscriptWithRetry(state.videoId)).trim();
       state.transcript = transcript;
     }
     if (!transcript) {

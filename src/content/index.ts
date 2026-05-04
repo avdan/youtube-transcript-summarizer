@@ -1,4 +1,4 @@
-import { YouTubeTranscriptAPI } from './youtubeTranscriptAPI';
+import { YouTubeTranscriptAPI, fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { mountInPagePanel, onVideoChanged } from './inPagePanel';
 
 declare global {
@@ -165,7 +165,7 @@ async function getTranscript(languageCode?: string): Promise<string> {
     throw new Error('Open a YouTube video first.');
   }
 
-  return new YouTubeTranscriptAPI(videoId).getFormattedTranscript(languageCode);
+  return fetchFormattedTranscriptWithRetry(videoId, languageCode);
 }
 
 function notifyVideoChange(): void {
