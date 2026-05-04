@@ -271,12 +271,18 @@ function buildQaSection(): HTMLElement {
   input.className = 'question-input';
   input.type = 'text';
   input.placeholder = 'Ask a question';
+  // YouTube binds global keyboard shortcuts (space = play/pause, j/k/l = seek, etc.)
+  // on document. Stop propagation so they don't fire while typing in our input.
+  const stopKey = (event: Event) => event.stopPropagation();
   input.addEventListener('keydown', event => {
+    event.stopPropagation();
     if (event.key === 'Enter') {
       event.preventDefault();
       void askQuestion();
     }
   });
+  input.addEventListener('keyup', stopKey);
+  input.addEventListener('keypress', stopKey);
 
   const askBtn = document.createElement('button');
   askBtn.id = 'qa-ask';
