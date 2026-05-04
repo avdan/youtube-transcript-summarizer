@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Transcript Analyzer",
-  "version": "1.0.5",
+  "version": "1.0.11",
   "description": "Analyze YouTube transcripts with AI-powered summaries and Q&A",
   "icons": {
     "16": "icons/icon-16.png",
@@ -27,8 +27,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/watch*", "https://m.youtube.com/watch*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://www.youtube.com/watch*",
+        "https://m.youtube.com/watch*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
