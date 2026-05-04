@@ -1,5 +1,6 @@
 import { YouTubeTranscriptAPI, fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { mountInPagePanel, onVideoChanged } from './inPagePanel';
+import { extractVideoMeta } from './videoMetaExtractor';
 
 declare global {
   interface Window {
@@ -26,7 +27,7 @@ function initContentScript(): void {
   currentVideoId = getVideoId();
   notifyVideoChange();
   mountInPagePanel();
-  onVideoChanged(currentVideoId, buildVideoMeta());
+  onVideoChanged(currentVideoId, buildVideoMetaForPanel());
 
   chrome.runtime.onMessage.addListener((message: RuntimeRequest, _sender, sendResponse) => {
     const action = message.action || message.type;
@@ -67,7 +68,7 @@ function initContentScript(): void {
     lastUrl = location.href;
     currentVideoId = getVideoId();
     notifyVideoChange();
-    onVideoChanged(currentVideoId, buildVideoMeta());
+    onVideoChanged(currentVideoId, buildVideoMetaForPanel());
   }).observe(document, { childList: true, subtree: true });
 }
 
@@ -75,140 +76,33 @@ function getVideoId(): string | null {
   return new URLSearchParams(window.location.search).get('v');
 }
 
-function buildVideoMeta() {
-  return {
-    title: getVideoTitle(),
-    channel: getChannelName(),
-    handle: getChannelHandle(),
-    channelUrl: getChannelUrl(),
-    url: location.href,
-    publishedAt: getPublishedAt(),
-    durationSeconds: getDurationSeconds(),
-    viewCount: getViewCount(),
-  };
-}
-
-function getPublishedAt(): string {
-  return (
-    document.querySelector('meta[itemprop="datePublished"]')?.getAttribute('content') ||
-    document.querySelector('meta[itemprop="uploadDate"]')?.getAttribute('content') ||
-    ''
-  );
-}
-
-function getDurationSeconds(): number {
-  const iso = document.querySelector('meta[itemprop="duration"]')?.getAttribute('content') || '';
-  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  if (!match) return 0;
-  const h = parseInt(match[1] || '0', 10);
-  const m = parseInt(match[2] || '0', 10);
-  const s = parseInt(match[3] || '0', 10);
-  return h * 3600 + m * 60 + s;
-}
-
-function getViewCount(): number {
-  const raw =
-    document.querySelector('meta[itemprop="interactionCount"]')?.getAttribute('content') ||
-    document.querySelector('meta[itemprop="userInteractionCount"]')?.getAttribute('content') ||
-    '';
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function getVideoInfo() {
+  const meta = extractVideoMeta();
   return {
-    videoId: getVideoId(),
-    title: getVideoTitle(),
-    channel: getChannelName(),
-    handle: getChannelHandle(),
-    channelUrl: getChannelUrl(),
-    url: location.href,
-    publishedAt: getPublishedAt(),
-    durationSeconds: getDurationSeconds(),
-    viewCount: getViewCount(),
+    videoId: meta.videoId,
+    title: meta.title,
+    channel: meta.channel || 'Unknown channel',
+    handle: meta.handle,
+    channelUrl: meta.channelUrl,
+    url: meta.url,
+    publishedAt: meta.publishedAt,
+    durationSeconds: meta.durationSeconds,
+    viewCount: meta.viewCount,
   };
 }
 
-function getChannelUrl(): string {
-  const selectors = [
-    'ytd-watch-metadata ytd-channel-name a',
-    '#owner ytd-channel-name a',
-    '#channel-name a',
-  ];
-
-  for (const selector of selectors) {
-    const href = (document.querySelector(selector) as HTMLAnchorElement | null)?.href;
-    if (href) {
-      return href;
-    }
-  }
-
-  return '';
-}
-
-function getVideoTitle(): string {
-  const selectors = [
-    'ytd-watch-metadata h1 yt-formatted-string',
-    'h1.ytd-watch-metadata',
-    'h1.title',
-  ];
-
-  for (const selector of selectors) {
-    const text = document.querySelector(selector)?.textContent?.trim();
-    if (text) {
-      return text;
-    }
-  }
-
-  return document.title.replace(/\s+-\s+YouTube$/, '').trim() || 'Untitled YouTube video';
-}
-
-function getChannelName(): string {
-  const selectors = [
-    'ytd-watch-metadata ytd-channel-name a',
-    '#owner ytd-channel-name a',
-    '#channel-name a',
-  ];
-
-  for (const selector of selectors) {
-    const text = document.querySelector(selector)?.textContent?.trim();
-    if (text) {
-      return text;
-    }
-  }
-
-  return 'Unknown channel';
-}
-
-function getChannelHandle(): string {
-  const selectors = [
-    'ytd-watch-metadata #owner-sub-count',
-    '#owner #owner-sub-count',
-    'ytd-video-owner-renderer #owner-sub-count',
-    'ytd-watch-metadata ytd-channel-name a',
-    '#owner ytd-channel-name a',
-    '#channel-name a',
-  ];
-
-  for (const selector of selectors) {
-    const text = document.querySelector(selector)?.textContent?.trim();
-    const handle = normalizeChannelHandle(text);
-    if (handle) {
-      return handle;
-    }
-  }
-
-  const channelUrl = (document.querySelector('ytd-watch-metadata ytd-channel-name a, #owner ytd-channel-name a') as HTMLAnchorElement | null)?.href;
-  return normalizeChannelHandle(channelUrl);
-}
-
-function normalizeChannelHandle(value?: string | null): string {
-  if (!value) {
-    return '';
-  }
-
-  const match = value.match(/@[\w.-]+/);
-  return match?.[0] || '';
+function buildVideoMetaForPanel() {
+  const meta = extractVideoMeta();
+  return {
+    title: meta.title,
+    channel: meta.channel,
+    handle: meta.handle,
+    channelUrl: meta.channelUrl,
+    url: meta.url,
+    publishedAt: meta.publishedAt,
+    durationSeconds: meta.durationSeconds,
+    viewCount: meta.viewCount,
+  };
 }
 
 async function getLanguages() {

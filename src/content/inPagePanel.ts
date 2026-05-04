@@ -2,6 +2,7 @@ import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength, THEME_OPTIONS, Th
 import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { withCopyHeader } from '../utils/copyHeader';
 import { buildExportJson } from '../utils/jsonExport';
+import { extractVideoMeta } from './videoMetaExtractor';
 
 export interface VideoMeta {
   title: string;
@@ -284,6 +285,7 @@ function renderBody(): void {
     copyBtn.type = 'button';
     copyBtn.textContent = 'Copy';
     copyBtn.addEventListener('click', () => {
+      refreshMetaFromPage();
       const payload = withCopyHeader(buildHeaderInfo(), state.summary || '');
       void navigator.clipboard.writeText(payload).then(() => {
         copyBtn.textContent = 'Copied';
@@ -472,6 +474,24 @@ function buildHeaderInfo() {
   };
 }
 
+/**
+ * Refresh state's video metadata from the current DOM. YouTube renders the
+ * channel name asynchronously after navigation, so any value we captured at
+ * panel-mount time may be stale. Call before copy/JSON actions.
+ */
+function refreshMetaFromPage(): void {
+  const meta = extractVideoMeta();
+  if (meta.videoId) state.videoId = meta.videoId;
+  if (meta.title) state.videoTitle = meta.title;
+  if (meta.channel) state.channel = meta.channel;
+  if (meta.handle) state.handle = meta.handle;
+  if (meta.channelUrl) state.channelUrl = meta.channelUrl;
+  if (meta.url) state.videoUrl = meta.url;
+  if (meta.publishedAt) state.publishedAt = meta.publishedAt;
+  if (meta.durationSeconds) state.durationSeconds = meta.durationSeconds;
+  if (meta.viewCount) state.viewCount = meta.viewCount;
+}
+
 function buildExportPayload(includeSummary: boolean, includeTranscript: boolean, prefs: any): string {
   return buildExportJson({
     video: {
@@ -498,6 +518,7 @@ async function copySummaryAsJson(button: HTMLButtonElement): Promise<void> {
   const original = button.textContent || 'JSON copy';
   try {
     if (!state.summary) throw new Error('No summary loaded.');
+    refreshMetaFromPage();
     const prefs = (await getPreferences()) || {};
     const json = buildExportPayload(true, false, prefs);
     await navigator.clipboard.writeText(json);
@@ -519,6 +540,7 @@ async function copyTranscriptAsJson(button: HTMLButtonElement): Promise<void> {
       state.transcript = transcript;
     }
     if (!transcript) throw new Error('No transcript available.');
+    refreshMetaFromPage();
     const prefs = (await getPreferences()) || {};
     const json = buildExportPayload(false, true, prefs);
     await navigator.clipboard.writeText(json);
@@ -542,6 +564,7 @@ async function copyTranscript(button: HTMLButtonElement): Promise<void> {
     if (!transcript) {
       throw new Error('No transcript available.');
     }
+    refreshMetaFromPage();
     const payload = withCopyHeader(buildHeaderInfo(), transcript);
     await navigator.clipboard.writeText(payload);
     button.textContent = 'Copied';
