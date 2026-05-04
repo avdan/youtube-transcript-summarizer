@@ -1,4 +1,5 @@
 import { YouTubeTranscriptAPI } from './youtubeTranscriptAPI';
+import { mountInPagePanel, onVideoChanged } from './inPagePanel';
 
 declare global {
   interface Window {
@@ -24,6 +25,8 @@ if (!window.__youtubeTranscriptAnalyzerLoaded) {
 function initContentScript(): void {
   currentVideoId = getVideoId();
   notifyVideoChange();
+  mountInPagePanel();
+  onVideoChanged(currentVideoId, getVideoTitle());
 
   chrome.runtime.onMessage.addListener((message: RuntimeRequest, _sender, sendResponse) => {
     const action = message.action || message.type;
@@ -64,6 +67,7 @@ function initContentScript(): void {
     lastUrl = location.href;
     currentVideoId = getVideoId();
     notifyVideoChange();
+    onVideoChanged(currentVideoId, getVideoTitle());
   }).observe(document, { childList: true, subtree: true });
 }
 

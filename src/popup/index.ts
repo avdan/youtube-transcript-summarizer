@@ -1,5 +1,6 @@
 import { Message } from '../types';
 import { StorageService } from '../utils/storage';
+import { MODEL_OPTIONS } from '../constants/models';
 
 interface VideoInfo {
   videoId: string | null;
@@ -313,6 +314,33 @@ function createQuestionSection(): HTMLElement {
   chat.className = 'chat-container';
   chat.id = 'chatContainer';
 
+  const modelRow = document.createElement('div');
+  modelRow.className = 'model-row';
+
+  const modelLabel = document.createElement('label');
+  modelLabel.className = 'model-label';
+  modelLabel.htmlFor = 'qaModelSelect';
+  modelLabel.textContent = 'Q&A model';
+
+  const modelSelect = document.createElement('select');
+  modelSelect.id = 'qaModelSelect';
+  modelSelect.className = 'model-select';
+  for (const option of MODEL_OPTIONS) {
+    const opt = document.createElement('option');
+    opt.value = option.id;
+    opt.textContent = option.label;
+    modelSelect.appendChild(opt);
+  }
+  modelSelect.addEventListener('change', () => {
+    void persistQaModel(modelSelect.value);
+  });
+
+  modelRow.append(modelLabel, modelSelect);
+
+  void StorageService.getPreferences().then(prefs => {
+    modelSelect.value = prefs.qaModel;
+  });
+
   const inputRow = document.createElement('div');
   inputRow.className = 'input-row';
 
@@ -335,9 +363,15 @@ function createQuestionSection(): HTMLElement {
   askButton.addEventListener('click', () => void askQuestion());
 
   inputRow.append(input, askButton);
-  section.append(title, chat, inputRow);
+  section.append(title, chat, modelRow, inputRow);
 
   return section;
+}
+
+async function persistQaModel(model: string): Promise<void> {
+  const prefs = await StorageService.getPreferences();
+  if (prefs.qaModel === model) return;
+  await StorageService.setPreferences({ ...prefs, qaModel: model });
 }
 
 async function copySummary(summary: string, button: HTMLButtonElement): Promise<void> {

@@ -36,7 +36,10 @@ export interface UserPreferences {
   autoSummarize: boolean;
   summaryLength: 'short' | 'medium' | 'long';
   language: string;
-  model: string;
+  summaryModel: string;
+  qaModel: string;
+  /** @deprecated kept for migration from < 1.1.0 */
+  model?: string;
 }
 
 export interface CacheData {

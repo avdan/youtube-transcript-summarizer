@@ -1,9 +1,11 @@
 import { StorageService } from '../utils/storage';
 import { OpenRouterService } from '../api/openrouter';
+import { MODEL_OPTIONS } from '../constants/models';
 
 // UI Elements
 let apiKeyInput: HTMLInputElement;
-let modelSelect: HTMLSelectElement;
+let summaryModelSelect: HTMLSelectElement;
+let qaModelSelect: HTMLSelectElement;
 let summaryLengthSelect: HTMLSelectElement;
 let autoSummarizeCheckbox: HTMLInputElement | null;
 let saveButton: HTMLButtonElement;
@@ -11,18 +13,34 @@ let testButton: HTMLButtonElement;
 let clearCacheButton: HTMLButtonElement;
 let messageDiv: HTMLElement;
 
+function populateModelSelect(select: HTMLSelectElement): void {
+  while (select.firstChild) {
+    select.removeChild(select.firstChild);
+  }
+  for (const option of MODEL_OPTIONS) {
+    const opt = document.createElement('option');
+    opt.value = option.id;
+    opt.textContent = option.label;
+    select.appendChild(opt);
+  }
+}
+
 // Initialize options page
 document.addEventListener('DOMContentLoaded', async () => {
   // Get elements
   apiKeyInput = document.getElementById('apiKey') as HTMLInputElement;
-  modelSelect = document.getElementById('model') as HTMLSelectElement;
+  summaryModelSelect = document.getElementById('summaryModel') as HTMLSelectElement;
+  qaModelSelect = document.getElementById('qaModel') as HTMLSelectElement;
   summaryLengthSelect = document.getElementById('summaryLength') as HTMLSelectElement;
   autoSummarizeCheckbox = document.getElementById('autoSummarize') as HTMLInputElement | null;
   saveButton = document.getElementById('saveBtn') as HTMLButtonElement;
   testButton = document.getElementById('testBtn') as HTMLButtonElement;
   clearCacheButton = document.getElementById('clearCacheBtn') as HTMLButtonElement;
   messageDiv = document.getElementById('message') as HTMLElement;
-  
+
+  populateModelSelect(summaryModelSelect);
+  populateModelSelect(qaModelSelect);
+
   // Load current settings
   await loadSettings();
   
@@ -35,7 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   clearCacheButton.addEventListener('click', clearCache);
   
   // Auto-save on input change
-  const inputs = [apiKeyInput, modelSelect, summaryLengthSelect, autoSummarizeCheckbox].filter(
+  const inputs = [apiKeyInput, summaryModelSelect, qaModelSelect, summaryLengthSelect, autoSummarizeCheckbox].filter(
     (input): input is HTMLInputElement | HTMLSelectElement => input !== null
   );
   inputs.forEach(input => {
@@ -54,8 +72,9 @@ async function loadSettings() {
     if (apiKey) {
       apiKeyInput.value = apiKey;
     }
-    
-    modelSelect.value = preferences.model;
+
+    summaryModelSelect.value = preferences.summaryModel;
+    qaModelSelect.value = preferences.qaModel;
     summaryLengthSelect.value = preferences.summaryLength;
     if (autoSummarizeCheckbox) {
       autoSummarizeCheckbox.checked = preferences.autoSummarize;
@@ -80,10 +99,11 @@ async function saveSettings() {
     
     // Save preferences
     await StorageService.setPreferences({
-      model: modelSelect.value,
+      summaryModel: summaryModelSelect.value,
+      qaModel: qaModelSelect.value,
       summaryLength: summaryLengthSelect.value as 'short' | 'medium' | 'long',
       autoSummarize: autoSummarizeCheckbox?.checked || false,
-      language: 'en', // Default for now
+      language: 'en',
     });
     
     showMessage('Settings saved successfully!', 'success');
@@ -108,10 +128,10 @@ async function testConnection() {
   testButton.textContent = 'Testing...';
   
   try {
-    // Test the API key
+    // Test the API key against the summary model
     const openRouter = new OpenRouterService({
       apiKey,
-      model: modelSelect.value || 'google/gemini-2.5-flash-lite',
+      model: summaryModelSelect.value || 'google/gemini-2.5-flash-lite',
       maxTokens: 120,
     });
     

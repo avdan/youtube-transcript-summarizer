@@ -31,7 +31,7 @@ async function initializeOpenRouter() {
 
     openRouterService = new OpenRouterService({
       apiKey,
-      model: preferences.model,
+      model: preferences.summaryModel,
       maxTokens: preferences.summaryLength === 'short' ? 1000 :
                  preferences.summaryLength === 'long' ? 2600 : 1800,
     });
@@ -143,11 +143,13 @@ async function handleMessage(message: Message) {
         }
       }
 
-      // Get answer
+      // Get answer (uses qaModel from preferences, falls back to summary model)
+      const preferences = await StorageService.getPreferences();
       const answer = await openRouterService!.answerQuestion(
         currentTranscript,
         question,
-        conversationHistory
+        conversationHistory,
+        preferences.qaModel
       );
 
       // Update conversation history

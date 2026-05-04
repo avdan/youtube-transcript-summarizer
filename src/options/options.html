@@ -167,14 +167,15 @@
     </div>
     
     <div class="form-group">
-      <label for="model">Model</label>
-      <select id="model">
-        <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Fast, low cost)</option>
-        <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5 (High quality)</option>
-        <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B Instruct (Open model)</option>
-        <option value="mistralai/mistral-small-3.2-24b-instruct-2506">Mistral Small 3.2 24B (Efficient)</option>
-        <option value="openrouter/auto">OpenRouter Auto (Route automatically)</option>
-      </select>
+      <label for="summaryModel">Summary model</label>
+      <select id="summaryModel"></select>
+      <div class="help-text">Used to generate the video summary.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="qaModel">Q&amp;A model</label>
+      <select id="qaModel"></select>
+      <div class="help-text">Used to answer follow-up questions about the video.</div>
     </div>
   </div>
   

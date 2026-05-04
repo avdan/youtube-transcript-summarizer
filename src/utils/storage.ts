@@ -1,11 +1,15 @@
 import { UserPreferences, CacheData } from '../types';
+import { DEFAULT_QA_MODEL, DEFAULT_SUMMARY_MODEL, MODEL_OPTIONS } from '../constants/models';
+
+const VALID_MODEL_IDS = new Set(MODEL_OPTIONS.map(m => m.id));
 
 export class StorageService {
   private static readonly defaultPreferences: UserPreferences = {
     autoSummarize: false,
     summaryLength: 'medium',
     language: 'en',
-    model: 'google/gemini-2.5-flash-lite',
+    summaryModel: DEFAULT_SUMMARY_MODEL,
+    qaModel: DEFAULT_QA_MODEL,
   };
 
   /**
@@ -28,13 +32,24 @@ export class StorageService {
    */
   static async getPreferences(): Promise<UserPreferences> {
     const data = await chrome.storage.sync.get('preferences');
-    const preferences = {
+    const stored = (data.preferences || {}) as Partial<UserPreferences>;
+    const preferences: UserPreferences = {
       ...this.defaultPreferences,
-      ...(data.preferences || {}),
+      ...stored,
     };
 
-    if (!preferences.model || !preferences.model.includes('/')) {
-      preferences.model = this.defaultPreferences.model;
+    // Migrate legacy `model` field into `summaryModel` + `qaModel`
+    if (stored.model && (!stored.summaryModel || !stored.qaModel)) {
+      preferences.summaryModel = stored.summaryModel || stored.model;
+      preferences.qaModel = stored.qaModel || stored.model;
+    }
+    delete preferences.model;
+
+    if (!VALID_MODEL_IDS.has(preferences.summaryModel)) {
+      preferences.summaryModel = DEFAULT_SUMMARY_MODEL;
+    }
+    if (!VALID_MODEL_IDS.has(preferences.qaModel)) {
+      preferences.qaModel = DEFAULT_QA_MODEL;
     }
 
     return preferences;

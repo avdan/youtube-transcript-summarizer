@@ -53,7 +53,8 @@ export class OpenRouterService {
   async answerQuestion(
     transcript: string,
     question: string,
-    conversationHistory: Array<{ role: string; content: string }> = []
+    conversationHistory: Array<{ role: string; content: string }> = [],
+    modelOverride?: string
   ): Promise<string> {
     try {
       const transcriptForQuestion = this.normalizeTranscript(transcript).slice(0, 120000);
@@ -61,7 +62,7 @@ export class OpenRouterService {
         {
           role: 'system',
           content:
-            'Answer questions using only the provided YouTube transcript. Be concise. If the transcript does not contain the answer, say that clearly.',
+            'You are helping a viewer understand a YouTube video. Use the supplied transcript as the primary source of facts. The user may also ask for interpretation, opinion, implications, or general background — answer those naturally, drawing on your own knowledge, but make it clear when you are going beyond what the transcript states. Be concise.',
         },
         {
           role: 'user',
@@ -77,7 +78,11 @@ export class OpenRouterService {
         },
       ];
 
-      const response = await this.createChatCompletion(messages, Math.min(this.config.maxTokens || 1000, 1200));
+      const response = await this.createChatCompletion(
+        messages,
+        Math.min(this.config.maxTokens || 1000, 1200),
+        modelOverride
+      );
       return response || 'No answer generated';
     } catch (error) {
       console.error('OpenRouter API error:', error);
@@ -109,7 +114,11 @@ export class OpenRouterService {
     return response || 'No summary generated';
   }
 
-  private async createChatCompletion(messages: ChatMessage[], maxTokens: number): Promise<string> {
+  private async createChatCompletion(
+    messages: ChatMessage[],
+    maxTokens: number,
+    modelOverride?: string
+  ): Promise<string> {
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: {
@@ -119,7 +128,7 @@ export class OpenRouterService {
         'X-Title': 'YouTube Transcript Analyzer',
       },
       body: JSON.stringify({
-        model: this.config.model,
+        model: modelOverride || this.config.model,
         messages,
         max_tokens: maxTokens,
         temperature: 0.3,
