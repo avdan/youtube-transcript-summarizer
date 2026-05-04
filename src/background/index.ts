@@ -32,8 +32,10 @@ async function initializeOpenRouter() {
     openRouterService = new OpenRouterService({
       apiKey,
       model: preferences.summaryModel,
-      maxTokens: preferences.summaryLength === 'short' ? 1000 :
-                 preferences.summaryLength === 'long' ? 2600 : 1800,
+      summaryLength: preferences.summaryLength,
+      maxTokens:
+        preferences.summaryLength === 'concise' ? 800 :
+        preferences.summaryLength === 'extended' ? 3200 : 1800,
     });
     
     return true;

@@ -1,12 +1,18 @@
 import { UserPreferences, CacheData } from '../types';
-import { DEFAULT_QA_MODEL, DEFAULT_SUMMARY_MODEL, MODEL_OPTIONS } from '../constants/models';
+import {
+  DEFAULT_QA_MODEL,
+  DEFAULT_SUMMARY_LENGTH,
+  DEFAULT_SUMMARY_MODEL,
+  MODEL_OPTIONS,
+  normalizeSummaryLength,
+} from '../constants/models';
 
 const VALID_MODEL_IDS = new Set(MODEL_OPTIONS.map(m => m.id));
 
 export class StorageService {
   private static readonly defaultPreferences: UserPreferences = {
     autoSummarize: false,
-    summaryLength: 'medium',
+    summaryLength: DEFAULT_SUMMARY_LENGTH,
     language: 'en',
     summaryModel: DEFAULT_SUMMARY_MODEL,
     qaModel: DEFAULT_QA_MODEL,
@@ -51,6 +57,8 @@ export class StorageService {
     if (!VALID_MODEL_IDS.has(preferences.qaModel)) {
       preferences.qaModel = DEFAULT_QA_MODEL;
     }
+
+    preferences.summaryLength = normalizeSummaryLength(preferences.summaryLength);
 
     return preferences;
   }

@@ -1,6 +1,6 @@
 import { Message } from '../types';
 import { StorageService } from '../utils/storage';
-import { MODEL_OPTIONS } from '../constants/models';
+import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength } from '../constants/models';
 import { withCopyHeader } from '../utils/copyHeader';
 
 interface VideoInfo {
@@ -257,6 +257,23 @@ function showSummary(summary: string, fromCache: boolean): void {
   const actions = document.createElement('div');
   actions.className = 'inline-actions';
 
+  const lengthSelect = document.createElement('select');
+  lengthSelect.className = 'length-select';
+  lengthSelect.title = 'Summary length';
+  for (const opt of SUMMARY_LENGTH_OPTIONS) {
+    const o = document.createElement('option');
+    o.value = opt.id;
+    o.textContent = opt.label;
+    lengthSelect.appendChild(o);
+  }
+  void StorageService.getPreferences().then(p => {
+    lengthSelect.value = p.summaryLength;
+  });
+  lengthSelect.addEventListener('change', async () => {
+    await persistSummaryLength(lengthSelect.value as SummaryLength);
+    void summarizeCurrentVideo(true);
+  });
+
   const copyButton = document.createElement('button');
   copyButton.className = 'icon-btn';
   copyButton.textContent = 'Copy';
@@ -272,7 +289,7 @@ function showSummary(summary: string, fromCache: boolean): void {
   regenerateButton.textContent = 'Regenerate';
   regenerateButton.addEventListener('click', () => summarizeCurrentVideo(true));
 
-  actions.append(copyButton, copyTranscriptButton, regenerateButton);
+  actions.append(lengthSelect, copyButton, copyTranscriptButton, regenerateButton);
   summaryHeader.append(summaryTitle, actions);
 
   const summaryContent = document.createElement('pre');
@@ -381,6 +398,13 @@ async function persistQaModel(model: string): Promise<void> {
   const prefs = await StorageService.getPreferences();
   if (prefs.qaModel === model) return;
   await StorageService.setPreferences({ ...prefs, qaModel: model });
+}
+
+async function persistSummaryLength(length: SummaryLength): Promise<void> {
+  const prefs = await StorageService.getPreferences();
+  if (prefs.summaryLength === length) return;
+  await StorageService.setPreferences({ ...prefs, summaryLength: length });
+  await sendMessageToBackground({ action: 'SETTINGS_UPDATED' });
 }
 
 async function copySummary(summary: string, button: HTMLButtonElement): Promise<void> {

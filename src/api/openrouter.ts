@@ -99,19 +99,37 @@ export class OpenRouterService {
   }
 
   private async createSummary(text: string, partial: boolean): Promise<string> {
+    const length = this.config.summaryLength || 'normal';
+
     const systemPrompt = partial
       ? 'Summarize this section of a YouTube transcript. Preserve important claims, examples, numbers, names, and steps. Keep it compact because another pass will combine it.'
-      : 'Summarize YouTube transcripts for a busy viewer. Be accurate, compact, and structured. Use Markdown bullets. Do not invent information not present in the transcript.';
+      : this.systemPromptForLength(length);
 
     const response = await this.createChatCompletion(
       [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: this.createSummaryPrompt(text) },
+        { role: 'user', content: this.createSummaryPrompt(text, length) },
       ],
-      partial ? 900 : this.config.maxTokens || 1800
+      partial ? 900 : this.config.maxTokens || this.defaultMaxTokensFor(length)
     );
 
     return response || 'No summary generated';
+  }
+
+  private systemPromptForLength(length: 'concise' | 'normal' | 'extended'): string {
+    if (length === 'concise') {
+      return 'Summarize YouTube transcripts for a busy viewer in the briefest useful form. Be terse, accurate, and skip nuance. Use plain Markdown bullets. Do not invent information not present in the transcript.';
+    }
+    if (length === 'extended') {
+      return 'Summarize YouTube transcripts thoroughly. Preserve nuance, supporting evidence, examples, numbers, names, and step-by-step detail. Use clear Markdown headings and bullets. Do not invent information not present in the transcript.';
+    }
+    return 'Summarize YouTube transcripts for a busy viewer. Be accurate, compact, and structured. Use Markdown bullets. Do not invent information not present in the transcript.';
+  }
+
+  private defaultMaxTokensFor(length: 'concise' | 'normal' | 'extended'): number {
+    if (length === 'concise') return 800;
+    if (length === 'extended') return 3200;
+    return 1800;
   }
 
   private async createChatCompletion(
@@ -174,14 +192,28 @@ export class OpenRouterService {
     return '';
   }
 
-  private createSummaryPrompt(transcript: string): string {
-    return `Create a useful summary of this YouTube video transcript.
-
-Output format:
+  private createSummaryPrompt(transcript: string, length: 'concise' | 'normal' | 'extended' = 'normal'): string {
+    const formatBlock =
+      length === 'concise'
+        ? `Output format:
+- Main topic: one short sentence
+- Key points: 3 to 5 bullets, each one line`
+        : length === 'extended'
+          ? `Output format:
+- Main topic: one or two sentences
+- Key points: 8 to 14 bullets, each can include a sub-bullet for evidence or example
+- Notable details: every name, tool, number, claim, or caveat worth preserving
+- Takeaways: 3 to 6 bullets when the video offers advice, framework, or steps
+- Caveats / counter-points the speaker raises`
+          : `Output format:
 - Main topic: one sentence
 - Key points: 5 to 8 bullets
 - Takeaways: 2 to 5 bullets, only when the video includes practical advice
-- Notable details: names, tools, numbers, or caveats worth preserving
+- Notable details: names, tools, numbers, or caveats worth preserving`;
+
+    return `Create a useful summary of this YouTube video transcript.
+
+${formatBlock}
 
 Transcript:
 ${transcript}`;

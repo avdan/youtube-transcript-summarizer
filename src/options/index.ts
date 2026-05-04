@@ -101,7 +101,7 @@ async function saveSettings() {
     await StorageService.setPreferences({
       summaryModel: summaryModelSelect.value,
       qaModel: qaModelSelect.value,
-      summaryLength: summaryLengthSelect.value as 'short' | 'medium' | 'long',
+      summaryLength: summaryLengthSelect.value as 'concise' | 'normal' | 'extended',
       autoSummarize: autoSummarizeCheckbox?.checked || false,
       language: 'en',
     });

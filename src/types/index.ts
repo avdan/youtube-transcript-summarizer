@@ -23,6 +23,7 @@ export interface OpenRouterConfig {
   apiKey: string;
   model: string;
   maxTokens?: number;
+  summaryLength?: 'concise' | 'normal' | 'extended';
 }
 
 // Storage types
@@ -34,7 +35,7 @@ export interface StorageData {
 
 export interface UserPreferences {
   autoSummarize: boolean;
-  summaryLength: 'short' | 'medium' | 'long';
+  summaryLength: 'concise' | 'normal' | 'extended';
   language: string;
   summaryModel: string;
   qaModel: string;

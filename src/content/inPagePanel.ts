@@ -1,4 +1,4 @@
-import { MODEL_OPTIONS } from '../constants/models';
+import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength } from '../constants/models';
 import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { withCopyHeader } from '../utils/copyHeader';
 
@@ -219,13 +219,30 @@ function renderBody(): void {
     copyTranscriptBtn.textContent = 'Copy transcript';
     copyTranscriptBtn.addEventListener('click', () => void copyTranscript(copyTranscriptBtn));
 
+    const lengthSelect = document.createElement('select');
+    lengthSelect.className = 'length-select';
+    lengthSelect.title = 'Summary length';
+    for (const opt of SUMMARY_LENGTH_OPTIONS) {
+      const o = document.createElement('option');
+      o.value = opt.id;
+      o.textContent = opt.label;
+      lengthSelect.appendChild(o);
+    }
+    void getStoredPrefs().then(p => {
+      if (p?.summaryLength) lengthSelect.value = p.summaryLength;
+    });
+    lengthSelect.addEventListener('change', async () => {
+      await persistSummaryLength(lengthSelect.value as SummaryLength);
+      void loadOrSummarize(true);
+    });
+
     const regenBtn = document.createElement('button');
     regenBtn.className = 'tiny-btn';
     regenBtn.type = 'button';
     regenBtn.textContent = 'Regenerate';
     regenBtn.addEventListener('click', () => void loadOrSummarize(true));
 
-    sActions.append(copyBtn, copyTranscriptBtn, regenBtn);
+    sActions.append(lengthSelect, copyBtn, copyTranscriptBtn, regenBtn);
     summaryHeader.append(sLabel, sActions);
 
     const summaryText = document.createElement('pre');
@@ -454,6 +471,22 @@ async function persistQaModel(model: string): Promise<void> {
   await chrome.storage.sync.set({ preferences: { ...prefs, qaModel: model } });
 }
 
+async function persistSummaryLength(length: SummaryLength): Promise<void> {
+  const prefs = await getPreferences();
+  const current = prefs || {};
+  if (current.summaryLength === length) return;
+  await chrome.storage.sync.set({ preferences: { ...current, summaryLength: length } });
+  try {
+    await sendBackground({ action: 'SETTINGS_UPDATED' });
+  } catch {
+    // background not ready / no-op
+  }
+}
+
+async function getStoredPrefs(): Promise<any> {
+  return getPreferences();
+}
+
 async function getPreferences(): Promise<any> {
   const data = await chrome.storage.sync.get('preferences');
   return data.preferences || null;
@@ -564,6 +597,18 @@ const STYLES = `
     cursor: pointer;
   }
   .tiny-btn:hover { background: #f4f5f7; }
+
+  .length-select {
+    padding: 3px 5px;
+    color: #2f343d;
+    background: #ffffff;
+    border: 1px solid #d5d9e2;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
   .summary-content {
     margin: 0;
@@ -679,7 +724,8 @@ const STYLES = `
 
     .tiny-btn,
     .question-input,
-    .model-select {
+    .model-select,
+    .length-select {
       color: #f1f3f5;
       background: #111317;
       border-color: #2a2d31;
