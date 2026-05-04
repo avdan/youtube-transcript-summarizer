@@ -2,6 +2,7 @@ import { Message } from '../types';
 import { StorageService } from '../utils/storage';
 import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength, Theme } from '../constants/models';
 import { withCopyHeader } from '../utils/copyHeader';
+import { buildExportJson } from '../utils/jsonExport';
 
 interface VideoInfo {
   videoId: string | null;
@@ -10,6 +11,9 @@ interface VideoInfo {
   handle?: string;
   channelUrl?: string;
   url?: string;
+  publishedAt?: string;
+  durationSeconds?: number;
+  viewCount?: number;
 }
 
 let contentDiv: HTMLElement;
@@ -282,7 +286,10 @@ function showSummary(summary: string, fromCache: boolean): void {
   summaryTitle.textContent = fromCache ? 'Summary' : 'Summary';
 
   const actions = document.createElement('div');
-  actions.className = 'inline-actions';
+  actions.className = 'actions-stack';
+
+  const row1 = document.createElement('div');
+  row1.className = 'inline-actions';
 
   const lengthSelect = document.createElement('select');
   lengthSelect.className = 'length-select';
@@ -311,22 +318,39 @@ function showSummary(summary: string, fromCache: boolean): void {
     void summarizeCurrentVideo(true);
   });
 
+  const regenerateButton = document.createElement('button');
+  regenerateButton.className = 'icon-btn';
+  regenerateButton.textContent = 'Regenerate';
+  regenerateButton.addEventListener('click', () => summarizeCurrentVideo(true));
+
+  row1.append(lengthSelect, regenerateButton);
+
+  const row2 = document.createElement('div');
+  row2.className = 'inline-actions';
+
   const copyButton = document.createElement('button');
   copyButton.className = 'icon-btn';
   copyButton.textContent = 'Copy';
   copyButton.addEventListener('click', () => copySummary(summaryWithMetadata, copyButton));
+
+  const copyJsonButton = document.createElement('button');
+  copyJsonButton.className = 'icon-btn';
+  copyJsonButton.textContent = 'Copy as JSON';
+  copyJsonButton.addEventListener('click', () => void copySummaryJson(copyJsonButton, summary));
 
   const copyTranscriptButton = document.createElement('button');
   copyTranscriptButton.className = 'icon-btn';
   copyTranscriptButton.textContent = 'Copy transcript';
   copyTranscriptButton.addEventListener('click', () => copyTranscript(copyTranscriptButton));
 
-  const regenerateButton = document.createElement('button');
-  regenerateButton.className = 'icon-btn';
-  regenerateButton.textContent = 'Regenerate';
-  regenerateButton.addEventListener('click', () => summarizeCurrentVideo(true));
+  const copyTranscriptJsonButton = document.createElement('button');
+  copyTranscriptJsonButton.className = 'icon-btn';
+  copyTranscriptJsonButton.textContent = 'Copy transcript as JSON';
+  copyTranscriptJsonButton.addEventListener('click', () => void copyTranscriptJson(copyTranscriptJsonButton));
 
-  actions.append(lengthSelect, copyButton, copyTranscriptButton, regenerateButton);
+  row2.append(copyButton, copyJsonButton, copyTranscriptButton, copyTranscriptJsonButton);
+
+  actions.append(row1, row2);
   summaryHeader.append(summaryTitle, actions);
 
   const summaryContent = document.createElement('pre');
@@ -455,6 +479,68 @@ async function copySummary(summary: string, button: HTMLButtonElement): Promise<
     }, 1400);
   } catch (error) {
     showError('Could not copy the summary to the clipboard.');
+  }
+}
+
+async function copySummaryJson(button: HTMLButtonElement, summary: string): Promise<void> {
+  const original = button.textContent || 'Copy as JSON';
+  try {
+    const prefs = await StorageService.getPreferences();
+    const json = buildExportJson({
+      video: {
+        id: currentVideo?.videoId || null,
+        title: currentVideo?.title || '',
+        url: currentVideo?.url || (currentVideo?.videoId ? `https://www.youtube.com/watch?v=${currentVideo.videoId}` : ''),
+        publishedAt: currentVideo?.publishedAt,
+        durationSeconds: currentVideo?.durationSeconds,
+        viewCount: currentVideo?.viewCount,
+      },
+      channel: {
+        name: currentVideo?.channel || '',
+        handle: currentVideo?.handle,
+        url: currentVideo?.channelUrl,
+      },
+      summary,
+      summaryModel: prefs.summaryModel,
+      summaryLength: prefs.summaryLength,
+    });
+    await navigator.clipboard.writeText(json);
+    button.textContent = 'Copied';
+    window.setTimeout(() => (button.textContent = original), 1400);
+  } catch (error) {
+    showError(getErrorMessage(error));
+  }
+}
+
+async function copyTranscriptJson(button: HTMLButtonElement): Promise<void> {
+  const original = button.textContent || 'Copy transcript as JSON';
+  try {
+    const data = await sendMessageToBackground({ action: 'GET_CURRENT_DATA' });
+    const transcript = (data?.transcript || '').trim();
+    if (!transcript) {
+      throw new Error('No transcript loaded yet.');
+    }
+    const json = buildExportJson({
+      video: {
+        id: currentVideo?.videoId || null,
+        title: currentVideo?.title || '',
+        url: currentVideo?.url || (currentVideo?.videoId ? `https://www.youtube.com/watch?v=${currentVideo.videoId}` : ''),
+        publishedAt: currentVideo?.publishedAt,
+        durationSeconds: currentVideo?.durationSeconds,
+        viewCount: currentVideo?.viewCount,
+      },
+      channel: {
+        name: currentVideo?.channel || '',
+        handle: currentVideo?.handle,
+        url: currentVideo?.channelUrl,
+      },
+      transcript,
+    });
+    await navigator.clipboard.writeText(json);
+    button.textContent = 'Copied';
+    window.setTimeout(() => (button.textContent = original), 1400);
+  } catch (error) {
+    showError(getErrorMessage(error));
   }
 }
 

@@ -82,7 +82,37 @@ function buildVideoMeta() {
     handle: getChannelHandle(),
     channelUrl: getChannelUrl(),
     url: location.href,
+    publishedAt: getPublishedAt(),
+    durationSeconds: getDurationSeconds(),
+    viewCount: getViewCount(),
   };
+}
+
+function getPublishedAt(): string {
+  return (
+    document.querySelector('meta[itemprop="datePublished"]')?.getAttribute('content') ||
+    document.querySelector('meta[itemprop="uploadDate"]')?.getAttribute('content') ||
+    ''
+  );
+}
+
+function getDurationSeconds(): number {
+  const iso = document.querySelector('meta[itemprop="duration"]')?.getAttribute('content') || '';
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const h = parseInt(match[1] || '0', 10);
+  const m = parseInt(match[2] || '0', 10);
+  const s = parseInt(match[3] || '0', 10);
+  return h * 3600 + m * 60 + s;
+}
+
+function getViewCount(): number {
+  const raw =
+    document.querySelector('meta[itemprop="interactionCount"]')?.getAttribute('content') ||
+    document.querySelector('meta[itemprop="userInteractionCount"]')?.getAttribute('content') ||
+    '';
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function getVideoInfo() {
@@ -93,6 +123,9 @@ function getVideoInfo() {
     handle: getChannelHandle(),
     channelUrl: getChannelUrl(),
     url: location.href,
+    publishedAt: getPublishedAt(),
+    durationSeconds: getDurationSeconds(),
+    viewCount: getViewCount(),
   };
 }
 

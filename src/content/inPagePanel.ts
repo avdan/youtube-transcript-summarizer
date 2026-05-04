@@ -1,6 +1,7 @@
 import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength, THEME_OPTIONS, Theme } from '../constants/models';
 import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { withCopyHeader } from '../utils/copyHeader';
+import { buildExportJson } from '../utils/jsonExport';
 
 export interface VideoMeta {
   title: string;
@@ -8,6 +9,9 @@ export interface VideoMeta {
   handle: string;
   channelUrl: string;
   url: string;
+  publishedAt?: string;
+  durationSeconds?: number;
+  viewCount?: number;
 }
 
 const HOST_ID = 'yts-summarizer-host';
@@ -20,6 +24,9 @@ interface PanelState {
   handle: string;
   channelUrl: string;
   videoUrl: string;
+  publishedAt: string;
+  durationSeconds: number;
+  viewCount: number;
   transcript: string | null;
   summary: string | null;
   conversationHistory: Array<{ role: string; content: string }>;
@@ -34,6 +41,9 @@ const state: PanelState = {
   handle: '',
   channelUrl: '',
   videoUrl: '',
+  publishedAt: '',
+  durationSeconds: 0,
+  viewCount: 0,
   transcript: null,
   summary: null,
   conversationHistory: [],
@@ -57,6 +67,9 @@ export function onVideoChanged(videoId: string | null, meta: VideoMeta): void {
   state.handle = meta.handle;
   state.channelUrl = meta.channelUrl;
   state.videoUrl = meta.url;
+  state.publishedAt = meta.publishedAt || '';
+  state.durationSeconds = meta.durationSeconds || 0;
+  state.viewCount = meta.viewCount || 0;
   state.transcript = null;
   state.summary = null;
   state.conversationHistory = [];
@@ -221,25 +234,10 @@ function renderBody(): void {
     const sLabel = document.createElement('h3');
     sLabel.textContent = 'Summary';
     const sActions = document.createElement('div');
-    sActions.className = 'inline-actions';
+    sActions.className = 'actions-stack';
 
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'tiny-btn';
-    copyBtn.type = 'button';
-    copyBtn.textContent = 'Copy';
-    copyBtn.addEventListener('click', () => {
-      const payload = withCopyHeader(buildHeaderInfo(), state.summary || '');
-      void navigator.clipboard.writeText(payload).then(() => {
-        copyBtn.textContent = 'Copied';
-        setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
-      });
-    });
-
-    const copyTranscriptBtn = document.createElement('button');
-    copyTranscriptBtn.className = 'tiny-btn';
-    copyTranscriptBtn.type = 'button';
-    copyTranscriptBtn.textContent = 'Copy transcript';
-    copyTranscriptBtn.addEventListener('click', () => void copyTranscript(copyTranscriptBtn));
+    const row1 = document.createElement('div');
+    row1.className = 'inline-actions';
 
     const lengthSelect = document.createElement('select');
     lengthSelect.className = 'length-select';
@@ -276,7 +274,44 @@ function renderBody(): void {
     regenBtn.textContent = 'Regenerate';
     regenBtn.addEventListener('click', () => void loadOrSummarize(true));
 
-    sActions.append(lengthSelect, copyBtn, copyTranscriptBtn, regenBtn);
+    row1.append(lengthSelect, regenBtn);
+
+    const row2 = document.createElement('div');
+    row2.className = 'inline-actions';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'tiny-btn';
+    copyBtn.type = 'button';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', () => {
+      const payload = withCopyHeader(buildHeaderInfo(), state.summary || '');
+      void navigator.clipboard.writeText(payload).then(() => {
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
+      });
+    });
+
+    const copyJsonBtn = document.createElement('button');
+    copyJsonBtn.className = 'tiny-btn';
+    copyJsonBtn.type = 'button';
+    copyJsonBtn.textContent = 'Copy as JSON';
+    copyJsonBtn.addEventListener('click', () => void copySummaryAsJson(copyJsonBtn));
+
+    const copyTranscriptBtn = document.createElement('button');
+    copyTranscriptBtn.className = 'tiny-btn';
+    copyTranscriptBtn.type = 'button';
+    copyTranscriptBtn.textContent = 'Copy transcript';
+    copyTranscriptBtn.addEventListener('click', () => void copyTranscript(copyTranscriptBtn));
+
+    const copyTranscriptJsonBtn = document.createElement('button');
+    copyTranscriptJsonBtn.className = 'tiny-btn';
+    copyTranscriptJsonBtn.type = 'button';
+    copyTranscriptJsonBtn.textContent = 'Copy transcript as JSON';
+    copyTranscriptJsonBtn.addEventListener('click', () => void copyTranscriptAsJson(copyTranscriptJsonBtn));
+
+    row2.append(copyBtn, copyJsonBtn, copyTranscriptBtn, copyTranscriptJsonBtn);
+
+    sActions.append(row1, row2);
     summaryHeader.append(sLabel, sActions);
 
     const summaryText = document.createElement('pre');
@@ -435,6 +470,65 @@ function buildHeaderInfo() {
     videoUrl: state.videoUrl,
     videoId: state.videoId,
   };
+}
+
+function buildExportPayload(includeSummary: boolean, includeTranscript: boolean, prefs: any): string {
+  return buildExportJson({
+    video: {
+      id: state.videoId,
+      title: state.videoTitle,
+      url: state.videoUrl || (state.videoId ? `https://www.youtube.com/watch?v=${state.videoId}` : ''),
+      publishedAt: state.publishedAt,
+      durationSeconds: state.durationSeconds,
+      viewCount: state.viewCount,
+    },
+    channel: {
+      name: state.channel,
+      handle: state.handle,
+      url: state.channelUrl,
+    },
+    summary: includeSummary ? state.summary || '' : undefined,
+    transcript: includeTranscript ? state.transcript || '' : undefined,
+    summaryModel: prefs?.summaryModel,
+    summaryLength: prefs?.summaryLength,
+  });
+}
+
+async function copySummaryAsJson(button: HTMLButtonElement): Promise<void> {
+  const original = button.textContent || 'Copy as JSON';
+  try {
+    if (!state.summary) throw new Error('No summary loaded.');
+    const prefs = (await getPreferences()) || {};
+    const json = buildExportPayload(true, false, prefs);
+    await navigator.clipboard.writeText(json);
+    button.textContent = 'Copied';
+    setTimeout(() => (button.textContent = original), 1200);
+  } catch (error) {
+    button.textContent = 'Failed';
+    setTimeout(() => (button.textContent = original), 1500);
+    console.warn('Copy summary JSON failed:', error);
+  }
+}
+
+async function copyTranscriptAsJson(button: HTMLButtonElement): Promise<void> {
+  const original = button.textContent || 'Copy transcript as JSON';
+  try {
+    let transcript = (state.transcript || '').trim();
+    if (!transcript && state.videoId) {
+      transcript = (await fetchFormattedTranscriptWithRetry(state.videoId)).trim();
+      state.transcript = transcript;
+    }
+    if (!transcript) throw new Error('No transcript available.');
+    const prefs = (await getPreferences()) || {};
+    const json = buildExportPayload(false, true, prefs);
+    await navigator.clipboard.writeText(json);
+    button.textContent = 'Copied';
+    setTimeout(() => (button.textContent = original), 1200);
+  } catch (error) {
+    button.textContent = 'Failed';
+    setTimeout(() => (button.textContent = original), 1500);
+    console.warn('Copy transcript JSON failed:', error);
+  }
 }
 
 async function copyTranscript(button: HTMLButtonElement): Promise<void> {
@@ -625,7 +719,9 @@ const STYLES = `
   }
   .sub-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
 
-  .inline-actions { display: flex; gap: 6px; }
+  .inline-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .actions-stack { display: flex; flex-direction: column; gap: 6px; }
+  .sub-header { flex-wrap: wrap; gap: 8px; }
 
   .tiny-btn {
     padding: 4px 8px;

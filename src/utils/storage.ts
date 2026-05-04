@@ -93,8 +93,11 @@ export class StorageService {
     return cached;
   }
 
+  private static readonly CACHE_LIMIT_BYTES = 10 * 1024 * 1024; // 10 MB
+
   /**
-   * Save data to cache
+   * Save data to cache, evicting oldest cache entries if total cache size
+   * exceeds CACHE_LIMIT_BYTES.
    */
   static async setCachedData(
     videoId: string,
@@ -106,8 +109,47 @@ export class StorageService {
       summary,
       timestamp: Date.now(),
     };
-    
+
     await chrome.storage.local.set({ [`cache_${videoId}`]: cacheData });
+    await this.enforceCacheLimit();
+  }
+
+  /**
+   * Evict oldest cache_* entries until total cache size is under the limit.
+   */
+  static async enforceCacheLimit(): Promise<void> {
+    const all = await chrome.storage.local.get();
+    const cacheEntries = Object.entries(all)
+      .filter(([key]) => key.startsWith('cache_'))
+      .map(([key, value]) => ({
+        key,
+        timestamp: (value as any)?.timestamp || 0,
+        size: this.byteSize(key) + this.byteSize(value),
+      }));
+
+    let totalBytes = cacheEntries.reduce((sum, entry) => sum + entry.size, 0);
+    if (totalBytes <= this.CACHE_LIMIT_BYTES) return;
+
+    cacheEntries.sort((a, b) => a.timestamp - b.timestamp);
+
+    const toRemove: string[] = [];
+    for (const entry of cacheEntries) {
+      if (totalBytes <= this.CACHE_LIMIT_BYTES) break;
+      toRemove.push(entry.key);
+      totalBytes -= entry.size;
+    }
+
+    if (toRemove.length > 0) {
+      await chrome.storage.local.remove(toRemove);
+      console.log(`Cache cleanup: removed ${toRemove.length} entries to stay under 10MB`);
+    }
+  }
+
+  private static byteSize(value: unknown): number {
+    if (typeof value === 'string') {
+      return new Blob([value]).size;
+    }
+    return new Blob([JSON.stringify(value ?? null)]).size;
   }
 
   /**
