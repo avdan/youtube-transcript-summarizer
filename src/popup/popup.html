@@ -329,89 +329,56 @@
       background: #dbe6fb;
     }
 
-    @media (prefers-color-scheme: dark) {
-      body {
-        color: #f1f3f5;
-        background: #000000;
-      }
+    body.dark { color: #f1f3f5; background: #000000; }
+    body.dark .header { border-bottom-color: #2a2d31; }
+    body.dark .title,
+    body.dark .state h2,
+    body.dark h3,
+    body.dark .video-block h2,
+    body.dark .summary-content { color: #f1f3f5; }
+    body.dark .video-block { border-bottom-color: #2a2d31; }
+    body.dark .video-block p,
+    body.dark .state,
+    body.dark .model-label { color: #b0b6bf; }
+    body.dark .settings-btn,
+    body.dark .icon-btn,
+    body.dark .secondary-btn,
+    body.dark .question-input,
+    body.dark .model-select,
+    body.dark .length-select,
+    body.dark .theme-select {
+      color: #f1f3f5;
+      background: #111317;
+      border-color: #2a2d31;
+    }
+    body.dark .summary-content { background: #111317; border-color: #2a2d31; }
+    body.dark .user-message { background: #16243d; color: #f1f3f5; }
+    body.dark .assistant-message { background: #1a1c20; color: #f1f3f5; }
+    body.dark .error { color: #ffb4af; background: #2a1413; border-color: #5a221f; }
+    body.dark .question-input:focus {
+      border-color: #ff5b55;
+      box-shadow: 0 0 0 2px rgba(255, 91, 85, 0.18);
+    }
+    body.dark .update-banner {
+      color: #c8d6ff;
+      background: #14213d;
+      border-color: #1f3b8a;
+    }
+    body.dark .update-banner a,
+    body.dark .update-banner button { color: #c8d6ff; }
+    body.dark .update-banner button { border-color: #1f3b8a; }
+    body.dark .update-banner button:hover { background: #1f2c4d; }
 
-      .header {
-        border-bottom-color: #2a2d31;
-      }
-
-      .title,
-      .state h2,
-      h3,
-      .video-block h2,
-      .summary-content {
-        color: #f1f3f5;
-      }
-
-      .video-block {
-        border-bottom-color: #2a2d31;
-      }
-
-      .video-block p,
-      .state,
-      .model-label {
-        color: #b0b6bf;
-      }
-
-      .settings-btn,
-      .icon-btn,
-      .secondary-btn,
-      .question-input,
-      .model-select,
-      .length-select {
-        color: #f1f3f5;
-        background: #111317;
-        border-color: #2a2d31;
-      }
-
-      .summary-content {
-        background: #111317;
-        border-color: #2a2d31;
-      }
-
-      .user-message {
-        background: #16243d;
-        color: #f1f3f5;
-      }
-
-      .assistant-message {
-        background: #1a1c20;
-        color: #f1f3f5;
-      }
-
-      .error {
-        color: #ffb4af;
-        background: #2a1413;
-        border-color: #5a221f;
-      }
-
-      .question-input:focus {
-        border-color: #ff5b55;
-        box-shadow: 0 0 0 2px rgba(255, 91, 85, 0.18);
-      }
-
-      .update-banner {
-        color: #c8d6ff;
-        background: #14213d;
-        border-color: #1f3b8a;
-      }
-
-      .update-banner a,
-      .update-banner button {
-        color: #c8d6ff;
-      }
-
-      .update-banner button {
-        border-color: #1f3b8a;
-      }
-
-      .update-banner button:hover {
-        background: #1f2c4d;
-      }
+    .theme-select {
+      padding: 5px 6px;
+      color: #2f343d;
+      background: #ffffff;
+      border: 1px solid #d5d9e2;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -419,7 +386,14 @@
   <div class="container">
     <header class="header">
       <h1 class="title">YouTube Summary</h1>
-      <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
+      <div style="display: flex; gap: 6px;">
+        <select class="theme-select" id="themeSelect" title="Theme">
+          <option value="auto">Auto</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
+      </div>
     </header>
     <div class="update-banner" id="updateBanner">
       <span class="update-text">

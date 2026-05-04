@@ -1,4 +1,4 @@
-import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength } from '../constants/models';
+import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength, THEME_OPTIONS, Theme } from '../constants/models';
 import { fetchFormattedTranscriptWithRetry } from './youtubeTranscriptAPI';
 import { withCopyHeader } from '../utils/copyHeader';
 
@@ -122,6 +122,28 @@ function renderShell(): void {
   const headerActions = document.createElement('div');
   headerActions.className = 'panel-actions';
 
+  const themeSelect = document.createElement('select');
+  themeSelect.className = 'theme-select';
+  themeSelect.title = 'Theme';
+  for (const opt of THEME_OPTIONS) {
+    const o = document.createElement('option');
+    o.value = opt.id;
+    o.textContent = opt.label;
+    themeSelect.appendChild(o);
+  }
+  void getPreferences().then(p => {
+    const t: Theme = p?.theme || 'auto';
+    themeSelect.value = t;
+    applyPanelTheme(t);
+  });
+  themeSelect.addEventListener('change', async () => {
+    const value = themeSelect.value as Theme;
+    const prefs = (await getPreferences()) || {};
+    await chrome.storage.sync.set({ preferences: { ...prefs, theme: value } });
+    applyPanelTheme(value);
+  });
+  headerActions.appendChild(themeSelect);
+
   const minimizeBtn = document.createElement('button');
   minimizeBtn.className = 'icon-btn';
   minimizeBtn.type = 'button';
@@ -228,11 +250,23 @@ function renderBody(): void {
       o.textContent = opt.label;
       lengthSelect.appendChild(o);
     }
+    let lastLength: SummaryLength = 'normal';
     void getStoredPrefs().then(p => {
-      if (p?.summaryLength) lengthSelect.value = p.summaryLength;
+      if (p?.summaryLength) {
+        lengthSelect.value = p.summaryLength;
+        lastLength = p.summaryLength;
+      }
     });
     lengthSelect.addEventListener('change', async () => {
-      await persistSummaryLength(lengthSelect.value as SummaryLength);
+      const next = lengthSelect.value as SummaryLength;
+      const labelOf = (id: string) => SUMMARY_LENGTH_OPTIONS.find(o => o.id === id)?.label || id;
+      const ok = window.confirm(`Regenerate summary as "${labelOf(next)}"? This will use API credits.`);
+      if (!ok) {
+        lengthSelect.value = lastLength;
+        return;
+      }
+      lastLength = next;
+      await persistSummaryLength(next);
       void loadOrSummarize(true);
     });
 
@@ -471,6 +505,14 @@ async function persistQaModel(model: string): Promise<void> {
   await chrome.storage.sync.set({ preferences: { ...prefs, qaModel: model } });
 }
 
+function applyPanelTheme(theme: Theme): void {
+  if (!shadow) return;
+  const panel = shadow.querySelector('.panel');
+  if (!panel) return;
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  panel.classList.toggle('dark', isDark);
+}
+
 async function persistSummaryLength(length: SummaryLength): Promise<void> {
   const prefs = await getPreferences();
   const current = prefs || {};
@@ -694,53 +736,42 @@ const STYLES = `
     box-shadow: 0 0 0 2px rgba(204, 31, 26, 0.12);
   }
 
-  @media (prefers-color-scheme: dark) {
-    .panel {
-      color: #f1f3f5;
-      background: #000000;
-      border-color: #2a2d31;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-    }
+  .panel.dark { color: #f1f3f5; background: #000000; border-color: #2a2d31; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+  .panel.dark .panel-header { background: #0d0f12; border-bottom-color: #2a2d31; }
+  .panel.dark .icon-btn { color: #f1f3f5; }
+  .panel.dark .icon-btn:hover { background: #1a1c20; }
+  .panel.dark .muted { color: #b0b6bf; }
+  .panel.dark .spinner-row { color: #b0b6bf; }
+  .panel.dark .spinner { border-color: #2a2d31; border-top-color: #ff5b55; }
+  .panel.dark .summary-content { color: #f1f3f5; background: #0d0f12; border-color: #2a2d31; }
+  .panel.dark .tiny-btn,
+  .panel.dark .question-input,
+  .panel.dark .model-select,
+  .panel.dark .length-select,
+  .panel.dark .theme-select {
+    color: #f1f3f5;
+    background: #111317;
+    border-color: #2a2d31;
+  }
+  .panel.dark .tiny-btn:hover { background: #1a1c20; }
+  .panel.dark .message.user { background: #16243d; color: #f1f3f5; }
+  .panel.dark .message.assistant { background: #1a1c20; color: #f1f3f5; }
+  .panel.dark .model-label { color: #b0b6bf; }
+  .panel.dark .question-input:focus {
+    border-color: #ff5b55;
+    box-shadow: 0 0 0 2px rgba(255, 91, 85, 0.18);
+  }
 
-    .panel-header {
-      background: #0d0f12;
-      border-bottom-color: #2a2d31;
-    }
-
-    .icon-btn {
-      color: #f1f3f5;
-    }
-    .icon-btn:hover { background: #1a1c20; }
-
-    .muted { color: #b0b6bf; }
-    .spinner-row { color: #b0b6bf; }
-    .spinner { border-color: #2a2d31; border-top-color: #ff5b55; }
-
-    .summary-content {
-      color: #f1f3f5;
-      background: #0d0f12;
-      border-color: #2a2d31;
-    }
-
-    .tiny-btn,
-    .question-input,
-    .model-select,
-    .length-select {
-      color: #f1f3f5;
-      background: #111317;
-      border-color: #2a2d31;
-    }
-    .tiny-btn:hover { background: #1a1c20; }
-
-    .message.user { background: #16243d; color: #f1f3f5; }
-    .message.assistant { background: #1a1c20; color: #f1f3f5; }
-
-    .model-label { color: #b0b6bf; }
-
-    .question-input:focus {
-      border-color: #ff5b55;
-      box-shadow: 0 0 0 2px rgba(255, 91, 85, 0.18);
-    }
+  .theme-select {
+    padding: 3px 5px;
+    color: #2f343d;
+    background: #ffffff;
+    border: 1px solid #d5d9e2;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .primary-btn {

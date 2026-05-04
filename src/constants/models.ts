@@ -40,3 +40,27 @@ export function normalizeSummaryLength(value: unknown): SummaryLength {
   }
   return DEFAULT_SUMMARY_LENGTH;
 }
+
+export type Theme = 'auto' | 'light' | 'dark';
+
+export interface ThemeOption {
+  id: Theme;
+  label: string;
+}
+
+export const THEME_OPTIONS: ThemeOption[] = [
+  { id: 'auto', label: 'Auto' },
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+];
+
+export const DEFAULT_THEME: Theme = 'auto';
+
+const VALID_THEMES = new Set<Theme>(THEME_OPTIONS.map(o => o.id));
+
+export function normalizeTheme(value: unknown): Theme {
+  if (typeof value === 'string' && VALID_THEMES.has(value as Theme)) {
+    return value as Theme;
+  }
+  return DEFAULT_THEME;
+}

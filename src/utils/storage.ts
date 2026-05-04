@@ -3,8 +3,10 @@ import {
   DEFAULT_QA_MODEL,
   DEFAULT_SUMMARY_LENGTH,
   DEFAULT_SUMMARY_MODEL,
+  DEFAULT_THEME,
   MODEL_OPTIONS,
   normalizeSummaryLength,
+  normalizeTheme,
 } from '../constants/models';
 
 const VALID_MODEL_IDS = new Set(MODEL_OPTIONS.map(m => m.id));
@@ -16,6 +18,7 @@ export class StorageService {
     language: 'en',
     summaryModel: DEFAULT_SUMMARY_MODEL,
     qaModel: DEFAULT_QA_MODEL,
+    theme: DEFAULT_THEME,
   };
 
   /**
@@ -59,6 +62,7 @@ export class StorageService {
     }
 
     preferences.summaryLength = normalizeSummaryLength(preferences.summaryLength);
+    preferences.theme = normalizeTheme(preferences.theme);
 
     return preferences;
   }

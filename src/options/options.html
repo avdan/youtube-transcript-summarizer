@@ -149,58 +149,26 @@
       display: none;
     }
 
-    @media (prefers-color-scheme: dark) {
-      body {
-        color: #f1f3f5;
-        background: #000000;
-      }
-
-      .help-text {
-        color: #b0b6bf;
-      }
-
-      input[type="text"],
-      input[type="password"],
-      select {
-        color: #f1f3f5;
-        background: #111317;
-        border-color: #2a2d31;
-      }
-
-      .secondary-btn {
-        background: #111317;
-        color: #f1f3f5;
-        border-color: #2a2d31;
-      }
-
-      .secondary-btn:hover {
-        background: #1a1c20;
-      }
-
-      .storage-info {
-        background: #111317;
-        color: #f1f3f5;
-      }
-
-      .storage-bar {
-        background: #2a2d31;
-      }
-
-      .success {
-        background: #0f2417;
-        color: #b8e6c5;
-      }
-
-      .error {
-        background: #2a1413;
-        color: #ffb4af;
-      }
-
-      .info {
-        background: #14213d;
-        color: #c8d6ff;
-      }
+    body.dark { color: #f1f3f5; background: #000000; }
+    body.dark .help-text { color: #b0b6bf; }
+    body.dark input[type="text"],
+    body.dark input[type="password"],
+    body.dark select {
+      color: #f1f3f5;
+      background: #111317;
+      border-color: #2a2d31;
     }
+    body.dark .secondary-btn {
+      background: #111317;
+      color: #f1f3f5;
+      border-color: #2a2d31;
+    }
+    body.dark .secondary-btn:hover { background: #1a1c20; }
+    body.dark .storage-info { background: #111317; color: #f1f3f5; }
+    body.dark .storage-bar { background: #2a2d31; }
+    body.dark .success { background: #0f2417; color: #b8e6c5; }
+    body.dark .error { background: #2a1413; color: #ffb4af; }
+    body.dark .info { background: #14213d; color: #c8d6ff; }
   </style>
 </head>
 <body>
@@ -241,6 +209,15 @@
         <option value="concise">Concise (Quick overview)</option>
         <option value="normal">Normal (Balanced)</option>
         <option value="extended">Extended (Detailed)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="theme">Theme</label>
+      <select id="theme">
+        <option value="auto">Auto (follow system)</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
       </select>
     </div>
     

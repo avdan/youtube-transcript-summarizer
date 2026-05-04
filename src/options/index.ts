@@ -1,13 +1,19 @@
 import { StorageService } from '../utils/storage';
 import { OpenRouterService } from '../api/openrouter';
-import { MODEL_OPTIONS } from '../constants/models';
+import { MODEL_OPTIONS, Theme } from '../constants/models';
 
 // UI Elements
 let apiKeyInput: HTMLInputElement;
 let summaryModelSelect: HTMLSelectElement;
 let qaModelSelect: HTMLSelectElement;
 let summaryLengthSelect: HTMLSelectElement;
+let themeSelect: HTMLSelectElement;
 let autoSummarizeCheckbox: HTMLInputElement | null;
+
+function applyTheme(theme: Theme): void {
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('dark', isDark);
+}
 let saveButton: HTMLButtonElement;
 let testButton: HTMLButtonElement;
 let clearCacheButton: HTMLButtonElement;
@@ -32,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   summaryModelSelect = document.getElementById('summaryModel') as HTMLSelectElement;
   qaModelSelect = document.getElementById('qaModel') as HTMLSelectElement;
   summaryLengthSelect = document.getElementById('summaryLength') as HTMLSelectElement;
+  themeSelect = document.getElementById('theme') as HTMLSelectElement;
   autoSummarizeCheckbox = document.getElementById('autoSummarize') as HTMLInputElement | null;
   saveButton = document.getElementById('saveBtn') as HTMLButtonElement;
   testButton = document.getElementById('testBtn') as HTMLButtonElement;
@@ -53,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   clearCacheButton.addEventListener('click', clearCache);
   
   // Auto-save on input change
-  const inputs = [apiKeyInput, summaryModelSelect, qaModelSelect, summaryLengthSelect, autoSummarizeCheckbox].filter(
+  const inputs = [apiKeyInput, summaryModelSelect, qaModelSelect, summaryLengthSelect, themeSelect, autoSummarizeCheckbox].filter(
     (input): input is HTMLInputElement | HTMLSelectElement => input !== null
   );
   inputs.forEach(input => {
@@ -61,6 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       showMessage('Settings have unsaved changes', 'info');
     });
   });
+
+  themeSelect.addEventListener('change', () => applyTheme(themeSelect.value as Theme));
 });
 
 // Load settings from storage
@@ -76,6 +85,8 @@ async function loadSettings() {
     summaryModelSelect.value = preferences.summaryModel;
     qaModelSelect.value = preferences.qaModel;
     summaryLengthSelect.value = preferences.summaryLength;
+    themeSelect.value = preferences.theme;
+    applyTheme(preferences.theme);
     if (autoSummarizeCheckbox) {
       autoSummarizeCheckbox.checked = preferences.autoSummarize;
     }
@@ -104,7 +115,9 @@ async function saveSettings() {
       summaryLength: summaryLengthSelect.value as 'concise' | 'normal' | 'extended',
       autoSummarize: autoSummarizeCheckbox?.checked || false,
       language: 'en',
+      theme: themeSelect.value as Theme,
     });
+    applyTheme(themeSelect.value as Theme);
     
     showMessage('Settings saved successfully!', 'success');
     

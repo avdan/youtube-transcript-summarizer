@@ -1,6 +1,6 @@
 import { Message } from '../types';
 import { StorageService } from '../utils/storage';
-import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength } from '../constants/models';
+import { MODEL_OPTIONS, SUMMARY_LENGTH_OPTIONS, SummaryLength, Theme } from '../constants/models';
 import { withCopyHeader } from '../utils/copyHeader';
 
 interface VideoInfo {
@@ -27,9 +27,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.openOptionsPage();
   });
 
+  await initTheme();
   void renderUpdateBanner();
   await loadPopup();
 });
+
+async function initTheme(): Promise<void> {
+  const themeSelect = document.getElementById('themeSelect') as HTMLSelectElement | null;
+  const prefs = await StorageService.getPreferences();
+  applyTheme(prefs.theme);
+  if (themeSelect) {
+    themeSelect.value = prefs.theme;
+    themeSelect.addEventListener('change', async () => {
+      const value = themeSelect.value as Theme;
+      const current = await StorageService.getPreferences();
+      await StorageService.setPreferences({ ...current, theme: value });
+      applyTheme(value);
+    });
+  }
+
+  const mql = window.matchMedia('(prefers-color-scheme: dark)');
+  mql.addEventListener('change', async () => {
+    const p = await StorageService.getPreferences();
+    if (p.theme === 'auto') applyTheme('auto');
+  });
+}
+
+function applyTheme(theme: Theme): void {
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('dark', isDark);
+}
 
 async function renderUpdateBanner(): Promise<void> {
   const banner = document.getElementById('updateBanner');
@@ -266,11 +293,21 @@ function showSummary(summary: string, fromCache: boolean): void {
     o.textContent = opt.label;
     lengthSelect.appendChild(o);
   }
+  let lastLengthValue: SummaryLength = 'normal';
   void StorageService.getPreferences().then(p => {
     lengthSelect.value = p.summaryLength;
+    lastLengthValue = p.summaryLength;
   });
   lengthSelect.addEventListener('change', async () => {
-    await persistSummaryLength(lengthSelect.value as SummaryLength);
+    const next = lengthSelect.value as SummaryLength;
+    const labelOf = (id: string) => SUMMARY_LENGTH_OPTIONS.find(o => o.id === id)?.label || id;
+    const ok = window.confirm(`Regenerate summary as "${labelOf(next)}"? This will use API credits.`);
+    if (!ok) {
+      lengthSelect.value = lastLengthValue;
+      return;
+    }
+    lastLengthValue = next;
+    await persistSummaryLength(next);
     void summarizeCurrentVideo(true);
   });
 

@@ -39,6 +39,7 @@ export interface UserPreferences {
   language: string;
   summaryModel: string;
   qaModel: string;
+  theme: 'auto' | 'light' | 'dark';
   /** @deprecated kept for migration from < 1.1.0 */
   model?: string;
 }
