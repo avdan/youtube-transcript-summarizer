@@ -335,7 +335,7 @@ function showSummary(summary: string, fromCache: boolean): void {
 
   const copyJsonButton = document.createElement('button');
   copyJsonButton.className = 'icon-btn';
-  copyJsonButton.textContent = 'Copy as JSON';
+  copyJsonButton.textContent = 'JSON copy';
   copyJsonButton.addEventListener('click', () => void copySummaryJson(copyJsonButton, summary));
 
   const copyTranscriptButton = document.createElement('button');
@@ -345,7 +345,7 @@ function showSummary(summary: string, fromCache: boolean): void {
 
   const copyTranscriptJsonButton = document.createElement('button');
   copyTranscriptJsonButton.className = 'icon-btn';
-  copyTranscriptJsonButton.textContent = 'Copy transcript as JSON';
+  copyTranscriptJsonButton.textContent = 'Copy JSON transcript';
   copyTranscriptJsonButton.addEventListener('click', () => void copyTranscriptJson(copyTranscriptJsonButton));
 
   row2.append(copyButton, copyJsonButton, copyTranscriptButton, copyTranscriptJsonButton);
@@ -483,7 +483,7 @@ async function copySummary(summary: string, button: HTMLButtonElement): Promise<
 }
 
 async function copySummaryJson(button: HTMLButtonElement, summary: string): Promise<void> {
-  const original = button.textContent || 'Copy as JSON';
+  const original = button.textContent || 'JSON copy';
   try {
     const prefs = await StorageService.getPreferences();
     const json = buildExportJson({
@@ -513,7 +513,7 @@ async function copySummaryJson(button: HTMLButtonElement, summary: string): Prom
 }
 
 async function copyTranscriptJson(button: HTMLButtonElement): Promise<void> {
-  const original = button.textContent || 'Copy transcript as JSON';
+  const original = button.textContent || 'Copy JSON transcript';
   try {
     const data = await sendMessageToBackground({ action: 'GET_CURRENT_DATA' });
     const transcript = (data?.transcript || '').trim();

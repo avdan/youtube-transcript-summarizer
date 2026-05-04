@@ -294,7 +294,7 @@ function renderBody(): void {
     const copyJsonBtn = document.createElement('button');
     copyJsonBtn.className = 'tiny-btn';
     copyJsonBtn.type = 'button';
-    copyJsonBtn.textContent = 'Copy as JSON';
+    copyJsonBtn.textContent = 'JSON copy';
     copyJsonBtn.addEventListener('click', () => void copySummaryAsJson(copyJsonBtn));
 
     const copyTranscriptBtn = document.createElement('button');
@@ -306,7 +306,7 @@ function renderBody(): void {
     const copyTranscriptJsonBtn = document.createElement('button');
     copyTranscriptJsonBtn.className = 'tiny-btn';
     copyTranscriptJsonBtn.type = 'button';
-    copyTranscriptJsonBtn.textContent = 'Copy transcript as JSON';
+    copyTranscriptJsonBtn.textContent = 'Copy JSON transcript';
     copyTranscriptJsonBtn.addEventListener('click', () => void copyTranscriptAsJson(copyTranscriptJsonBtn));
 
     row2.append(copyBtn, copyJsonBtn, copyTranscriptBtn, copyTranscriptJsonBtn);
@@ -495,7 +495,7 @@ function buildExportPayload(includeSummary: boolean, includeTranscript: boolean,
 }
 
 async function copySummaryAsJson(button: HTMLButtonElement): Promise<void> {
-  const original = button.textContent || 'Copy as JSON';
+  const original = button.textContent || 'JSON copy';
   try {
     if (!state.summary) throw new Error('No summary loaded.');
     const prefs = (await getPreferences()) || {};
@@ -511,7 +511,7 @@ async function copySummaryAsJson(button: HTMLButtonElement): Promise<void> {
 }
 
 async function copyTranscriptAsJson(button: HTMLButtonElement): Promise<void> {
-  const original = button.textContent || 'Copy transcript as JSON';
+  const original = button.textContent || 'Copy JSON transcript';
   try {
     let transcript = (state.transcript || '').trim();
     if (!transcript && state.videoId) {
@@ -724,7 +724,7 @@ const STYLES = `
   .sub-header { flex-wrap: wrap; gap: 8px; }
 
   .tiny-btn {
-    padding: 4px 8px;
+    padding: 4px 7px;
     color: #2f343d;
     background: #ffffff;
     border: 1px solid #d5d9e2;
@@ -732,6 +732,7 @@ const STYLES = `
     font: inherit;
     font-size: 11px;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
   }
   .tiny-btn:hover { background: #f4f5f7; }
