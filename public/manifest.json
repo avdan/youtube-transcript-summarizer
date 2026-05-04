@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Transcript Analyzer",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "Analyze YouTube transcripts with AI-powered summaries and Q&A",
   "icons": {
     "16": "icons/icon-16.png",
