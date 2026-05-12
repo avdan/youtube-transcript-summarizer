@@ -273,6 +273,25 @@ async function handleMessage(message: Message) {
       }
     }
 
+    case 'OPEN_IN_INCOGNITO': {
+      const { url } = message.payload || {};
+      if (!url || typeof url !== 'string') {
+        throw new Error('Missing URL');
+      }
+      try {
+        await chrome.windows.create({ url, incognito: true });
+        return { success: true };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          success: false,
+          error:
+            msg ||
+            'Could not open an incognito window. Enable “Allow in Incognito” for this extension in chrome://extensions.',
+        };
+      }
+    }
+
     case 'GET_UPDATE_INFO': {
       return await getUpdateState();
     }

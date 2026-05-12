@@ -16,7 +16,10 @@ export interface VideoMeta {
 }
 
 const HOST_ID = 'yts-summarizer-host';
+const FALLBACK_ID = 'yts-summarizer-fallback';
+const FALLBACK_DISMISSED_KEY = '__ytsFallbackDismissedInSession';
 const SESSION_HIDDEN_KEY = '__ytsHiddenInSession';
+const FALLBACK_WAIT_MS = 4000;
 
 interface PanelState {
   videoId: string | null;
@@ -48,13 +51,16 @@ const state: PanelState = {
   transcript: null,
   summary: null,
   conversationHistory: [],
-  collapsed: false,
+  collapsed: true,
   busy: false,
 };
 
 let host: HTMLDivElement | null = null;
 let shadow: ShadowRoot | null = null;
 let mountObserver: MutationObserver | null = null;
+let fallbackHost: HTMLDivElement | null = null;
+let fallbackShadow: ShadowRoot | null = null;
+let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function mountInPagePanel(): void {
   ensureMounted();
@@ -74,10 +80,12 @@ export function onVideoChanged(videoId: string | null, meta: VideoMeta): void {
   state.transcript = null;
   state.summary = null;
   state.conversationHistory = [];
+  state.collapsed = true;
   state.busy = false;
-  renderBody();
+  updateFallbackUrl();
+  renderShell();
   if (videoId && host && shadow) {
-    void loadOrSummarize(false);
+    void loadCachedOnly();
   }
 }
 
@@ -87,6 +95,7 @@ function observeMountPoint(): void {
     ensureMounted();
   });
   mountObserver.observe(document.body, { childList: true, subtree: true });
+  scheduleFallbackCheck();
 }
 
 function findMountPoint(): HTMLElement | null {
@@ -97,10 +106,15 @@ function findMountPoint(): HTMLElement | null {
 
 function ensureMounted(): void {
   if ((window as any)[SESSION_HIDDEN_KEY]) return;
-  if (host && document.body.contains(host)) return;
+  if (host && document.body.contains(host)) {
+    removeFallback();
+    return;
+  }
 
   const mountPoint = findMountPoint();
   if (!mountPoint) return;
+
+  removeFallback();
 
   host = document.createElement('div');
   host.id = HOST_ID;
@@ -111,8 +125,98 @@ function ensureMounted(): void {
   mountPoint.insertBefore(host, mountPoint.firstChild);
 
   if (state.videoId) {
-    void loadOrSummarize(false);
+    void loadCachedOnly();
   }
+}
+
+function scheduleFallbackCheck(): void {
+  if (fallbackTimer) return;
+  fallbackTimer = setTimeout(() => {
+    fallbackTimer = null;
+    if (host && document.body.contains(host)) return;
+    if (findMountPoint()) return;
+    showFallbackButton();
+  }, FALLBACK_WAIT_MS);
+}
+
+function showFallbackButton(): void {
+  if ((window as any)[SESSION_HIDDEN_KEY]) return;
+  if ((window as any)[FALLBACK_DISMISSED_KEY]) return;
+  if (fallbackHost && document.body.contains(fallbackHost)) return;
+  if (!state.videoId) return;
+  if (chrome.extension?.inIncognitoContext) return;
+
+  fallbackHost = document.createElement('div');
+  fallbackHost.id = FALLBACK_ID;
+  fallbackShadow = fallbackHost.attachShadow({ mode: 'open' });
+
+  const style = document.createElement('style');
+  style.textContent = FALLBACK_STYLES;
+  fallbackShadow.appendChild(style);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'fb-wrap';
+
+  const text = document.createElement('div');
+  text.className = 'fb-text';
+  text.textContent = 'YT Summarizer can’t attach — the sidebar is hidden by another extension.';
+
+  const actions = document.createElement('div');
+  actions.className = 'fb-actions';
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'fb-primary';
+  openBtn.textContent = 'Open in Incognito';
+  openBtn.addEventListener('click', () => {
+    const url = window.location.href;
+    chrome.runtime.sendMessage(
+      { action: 'OPEN_IN_INCOGNITO', payload: { url } },
+      response => {
+        void chrome.runtime.lastError;
+        if (response?.success) {
+          openBtn.textContent = 'Opened';
+          setTimeout(() => (openBtn.textContent = 'Open in Incognito'), 1500);
+        } else if (response?.error) {
+          openBtn.textContent = 'Enable in incognito';
+          openBtn.title = response.error;
+        }
+      }
+    );
+  });
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'fb-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss');
+  dismissBtn.textContent = '×';
+  dismissBtn.addEventListener('click', () => {
+    (window as any)[FALLBACK_DISMISSED_KEY] = true;
+    removeFallback();
+  });
+
+  actions.append(openBtn, dismissBtn);
+  wrap.append(text, actions);
+  fallbackShadow.appendChild(wrap);
+  document.body.appendChild(fallbackHost);
+}
+
+function removeFallback(): void {
+  if (fallbackTimer) {
+    clearTimeout(fallbackTimer);
+    fallbackTimer = null;
+  }
+  if (fallbackHost && fallbackHost.parentElement) {
+    fallbackHost.parentElement.removeChild(fallbackHost);
+  }
+  fallbackHost = null;
+  fallbackShadow = null;
+}
+
+function updateFallbackUrl(): void {
+  if (!fallbackHost) return;
+  // The visible URL is read fresh from window.location.href on click,
+  // so nothing to update in the DOM. Hook exists for future per-video state.
 }
 
 function renderShell(): void {
@@ -135,6 +239,20 @@ function renderShell(): void {
 
   const headerActions = document.createElement('div');
   headerActions.className = 'panel-actions';
+
+  if (state.videoId && !state.summary) {
+    const headerCta = document.createElement('button');
+    headerCta.className = 'header-cta';
+    headerCta.type = 'button';
+    headerCta.textContent = state.busy ? 'Working…' : 'Generate summary';
+    headerCta.disabled = state.busy;
+    headerCta.addEventListener('click', () => {
+      state.collapsed = false;
+      renderShell();
+      void loadOrSummarize(true);
+    });
+    headerActions.appendChild(headerCta);
+  }
 
   const themeSelect = document.createElement('select');
   themeSelect.className = 'theme-select';
@@ -418,6 +536,23 @@ function buildChatMessage(role: string, content: string): HTMLElement {
   div.className = role === 'assistant' ? 'message assistant' : 'message user';
   div.textContent = content;
   return div;
+}
+
+async function loadCachedOnly(): Promise<void> {
+  if (!state.videoId) return;
+  try {
+    const cached = await sendBackground({
+      action: 'GET_CACHED_SUMMARY',
+      payload: { videoId: state.videoId },
+    });
+    if (cached?.success && cached.summary) {
+      state.summary = cached.summary;
+      state.transcript = cached.transcript || null;
+      renderBody();
+    }
+  } catch {
+    // No cache, no problem — wait for the user to click the CTA.
+  }
 }
 
 async function loadOrSummarize(force: boolean): Promise<void> {
@@ -906,4 +1041,77 @@ const STYLES = `
   }
   .primary-btn:hover:not(:disabled) { background: #b51b16; }
   .primary-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+
+  .header-cta {
+    padding: 4px 10px;
+    color: #ffffff;
+    background: #cc1f1a;
+    border: 1px solid #cc1f1a;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .header-cta:hover:not(:disabled) { background: #b51b16; }
+  .header-cta:disabled { opacity: 0.65; cursor: not-allowed; }
+  .panel.dark .header-cta { color: #ffffff; background: #cc1f1a; border-color: #cc1f1a; }
+  .panel.dark .header-cta:hover:not(:disabled) { background: #ff5b55; border-color: #ff5b55; }
+`;
+
+const FALLBACK_STYLES = `
+  :host { all: initial; }
+  * { box-sizing: border-box; }
+
+  .fb-wrap {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2147483646;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 340px;
+    padding: 10px 12px;
+    color: #f1f3f5;
+    background: #1a1c20;
+    border: 1px solid #2a2d31;
+    border-radius: 10px;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12.5px;
+    line-height: 1.4;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  .fb-text { flex: 1; min-width: 0; }
+
+  .fb-actions { display: flex; align-items: center; gap: 6px; }
+
+  .fb-primary {
+    padding: 6px 10px;
+    color: #ffffff;
+    background: #cc1f1a;
+    border: 1px solid #cc1f1a;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .fb-primary:hover { background: #b51b16; }
+
+  .fb-dismiss {
+    width: 24px;
+    height: 24px;
+    color: #f1f3f5;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .fb-dismiss:hover { background: #2a2d31; }
 `;
