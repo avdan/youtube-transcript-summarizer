@@ -61,6 +61,7 @@ let mountObserver: MutationObserver | null = null;
 let fallbackHost: HTMLDivElement | null = null;
 let fallbackShadow: ShadowRoot | null = null;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let wantFallback = false;
 
 export function mountInPagePanel(): void {
   ensureMounted();
@@ -82,7 +83,10 @@ export function onVideoChanged(videoId: string | null, meta: VideoMeta): void {
   state.conversationHistory = [];
   state.collapsed = true;
   state.busy = false;
+  wantFallback = false;
+  removeFallback();
   updateFallbackUrl();
+  scheduleFallbackCheck();
   renderShell();
   if (videoId && host && shadow) {
     void loadCachedOnly();
@@ -112,7 +116,10 @@ function ensureMounted(): void {
   }
 
   const mountPoint = findMountPoint();
-  if (!mountPoint) return;
+  if (!mountPoint) {
+    if (wantFallback) showFallbackButton();
+    return;
+  }
 
   removeFallback();
 
@@ -129,12 +136,29 @@ function ensureMounted(): void {
   }
 }
 
+function findFallbackMountPoint(): { parent: HTMLElement; before: HTMLElement | null } | null {
+  const comments = document.querySelector('ytd-comments#comments, #comments') as HTMLElement | null;
+  if (comments?.parentElement) {
+    return { parent: comments.parentElement, before: comments };
+  }
+  const below = document.querySelector('#below') as HTMLElement | null;
+  if (below) {
+    return { parent: below, before: below.firstElementChild as HTMLElement | null };
+  }
+  const primaryInner = document.querySelector('#primary-inner') as HTMLElement | null;
+  if (primaryInner) {
+    return { parent: primaryInner, before: null };
+  }
+  return null;
+}
+
 function scheduleFallbackCheck(): void {
   if (fallbackTimer) return;
   fallbackTimer = setTimeout(() => {
     fallbackTimer = null;
     if (host && document.body.contains(host)) return;
     if (findMountPoint()) return;
+    wantFallback = true;
     showFallbackButton();
   }, FALLBACK_WAIT_MS);
 }
@@ -146,8 +170,13 @@ function showFallbackButton(): void {
   if (!state.videoId) return;
   if (chrome.extension?.inIncognitoContext) return;
 
+  const target = findFallbackMountPoint();
+  if (!target) return; // observer will retry once the under-video area renders
+
   fallbackHost = document.createElement('div');
   fallbackHost.id = FALLBACK_ID;
+  fallbackHost.style.display = 'block';
+  fallbackHost.style.margin = '12px 0';
   fallbackShadow = fallbackHost.attachShadow({ mode: 'open' });
 
   const style = document.createElement('style');
@@ -159,7 +188,7 @@ function showFallbackButton(): void {
 
   const text = document.createElement('div');
   text.className = 'fb-text';
-  text.textContent = 'YT Summarizer can’t attach — the sidebar is hidden by another extension.';
+  text.textContent = 'YT Summarizer can’t attach here — another extension removed the sidebar it uses.';
 
   const actions = document.createElement('div');
   actions.className = 'fb-actions';
@@ -192,13 +221,14 @@ function showFallbackButton(): void {
   dismissBtn.textContent = '×';
   dismissBtn.addEventListener('click', () => {
     (window as any)[FALLBACK_DISMISSED_KEY] = true;
+    wantFallback = false;
     removeFallback();
   });
 
   actions.append(openBtn, dismissBtn);
   wrap.append(text, actions);
   fallbackShadow.appendChild(wrap);
-  document.body.appendChild(fallbackHost);
+  target.parent.insertBefore(fallbackHost, target.before);
 }
 
 function removeFallback(): void {
@@ -1065,37 +1095,39 @@ const FALLBACK_STYLES = `
   * { box-sizing: border-box; }
 
   .fb-wrap {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 2147483646;
     display: flex;
     align-items: center;
-    gap: 10px;
-    max-width: 340px;
-    padding: 10px 12px;
-    color: #f1f3f5;
-    background: #1a1c20;
-    border: 1px solid #2a2d31;
+    gap: 12px;
+    padding: 10px 14px;
+    color: var(--yt-spec-text-primary, #0f0f0f);
+    background: var(--yt-spec-badge-chip-background, #f2f2f2);
+    border: 1px solid rgba(0,0,0,0.08);
     border-radius: 10px;
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.4;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .fb-wrap {
+      color: #f1f3f5;
+      background: #1a1c20;
+      border-color: #2a2d31;
+    }
   }
 
   .fb-text { flex: 1; min-width: 0; }
 
-  .fb-actions { display: flex; align-items: center; gap: 6px; }
+  .fb-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
   .fb-primary {
-    padding: 6px 10px;
+    padding: 7px 12px;
     color: #ffffff;
     background: #cc1f1a;
     border: 1px solid #cc1f1a;
-    border-radius: 6px;
+    border-radius: 999px;
     font: inherit;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
@@ -1103,15 +1135,18 @@ const FALLBACK_STYLES = `
   .fb-primary:hover { background: #b51b16; }
 
   .fb-dismiss {
-    width: 24px;
-    height: 24px;
-    color: #f1f3f5;
+    width: 28px;
+    height: 28px;
+    color: inherit;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 6px;
-    font-size: 16px;
+    border-radius: 999px;
+    font-size: 18px;
     line-height: 1;
     cursor: pointer;
   }
-  .fb-dismiss:hover { background: #2a2d31; }
+  .fb-dismiss:hover { background: rgba(0,0,0,0.06); }
+  @media (prefers-color-scheme: dark) {
+    .fb-dismiss:hover { background: #2a2d31; }
+  }
 `;
